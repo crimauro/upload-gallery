@@ -1,152 +1,251 @@
 :root {
-  color-scheme: dark;
-  --bg: #060816;
-  --panel: rgba(12, 18, 42, 0.78);
-  --line: rgba(126, 240, 255, 0.35);
-  --text: #f3f8ff;
-  --muted: #9fb4d3;
-  --accent: #6afff2;
-  --accent-2: #8b7dff;
+    color-scheme: dark;
+    --bg: #060816;
+    --panel: rgba(12, 18, 42, 0.78);
+    --line: rgba(126, 240, 255, 0.35);
+    --text: #f3f8ff;
+    --muted: #9fb4d3;
+    --accent: #6afff2;
+    --accent-2: #8b7dff;
 }
 
 * {
-  box-sizing: border-box;
+    box-sizing: border-box;
 }
 
 body {
-  margin: 0;
-  font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background: radial-gradient(circle at top, #121a3f 0%, var(--bg) 55%);
-  color: var(--text);
-  min-height: 100vh;
+    margin: 0;
+    font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: radial-gradient(circle at top, #121a3f 0%, var(--bg) 55%);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0 10px; /* Evita que el contenido toque los bordes físicos del celular */
 }
 
 .aurora {
-  position: fixed;
-  inset: 0;
-  background: radial-gradient(circle at 20% 30%, rgba(106, 255, 242, 0.16), transparent 32%),
-    radial-gradient(circle at 80% 20%, rgba(139, 125, 255, 0.18), transparent 35%);
-  pointer-events: none;
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(circle at 20% 30%, rgba(106, 255, 242, 0.16), transparent 32%), radial-gradient(circle at 80% 20%, rgba(139, 125, 255, 0.18), transparent 35%);
+    pointer-events: none;
 }
 
 .container {
-  position: relative;
-  width: min(1100px, 92%);
-  margin: 2rem auto 4rem;
-  display: grid;
-  gap: 1.2rem;
+    position: relative;
+    width: min(1100px, 95%); /* Aprovecha mejor el ancho en pantallas pequeñas */
+    margin: 1.5rem auto 3rem; /* Espaciado superior balanceado */
+    display: grid;
+    gap: 1.2rem;
 }
 
 .hero,
 .panel {
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: var(--panel);
-  backdrop-filter: blur(8px);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-  padding: 1rem 1.2rem;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--panel);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    padding: 1.2rem;
+}
+
+.hero {
+    text-align: center;
 }
 
 h1,
 h2 {
-  margin: 0 0 0.6rem;
+    margin: 0 0 0.6rem;
+}
+
+h1 {
+    font-size: 1.8rem; /* Tamaño idóneo para móviles */
+}
+
+h2 {
+    font-size: 1.3rem;
 }
 
 p {
-  margin: 0;
-  color: var(--muted);
-}
-
-.grid {
-  display: grid;
-  gap: 0.7rem;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.95rem;
 }
 
 label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  font-size: 0.92rem;
-  color: var(--muted);
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    font-size: 0.92rem;
+    color: var(--muted);
 }
 
 input,
 button {
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 10px;
-  padding: 0.7rem 0.8rem;
-  font-size: 0.95rem;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 10px;
+    padding: 0.8rem 1rem; /* Botones más altos y cómodos para pantallas táctiles */
+    font-size: 0.95rem;
+    width: 100%; /* Por defecto toman todo el ancho en celulares */
 }
 
 input {
-  background: rgba(5, 12, 32, 0.8);
-  color: var(--text);
+    background: rgba(5, 12, 32, 0.8);
+    color: var(--text);
 }
 
 button {
-  background: linear-gradient(120deg, var(--accent) 0%, var(--accent-2) 100%);
-  color: #050a1e;
-  font-weight: 600;
-  cursor: pointer;
+    background: linear-gradient(120deg, var(--accent) 0%, var(--accent-2) 100%);
+    color: #050a1e;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.1s ease, opacity 0.2s ease;
 }
 
+    button:active {
+        transform: scale(0.98); /* Pequeño efecto visual al presionarlo con el dedo */
+    }
+
+#refresh-btn {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* Lógica responsiva para la fila de subida */
 .upload-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-}
-
-.upload-row input {
-  flex: 1 1 260px;
+    display: flex;
+    flex-direction: column; /* En fila vertical para celulares */
+    gap: 0.8rem;
 }
 
 .status {
-  margin-top: 0.7rem;
-  min-height: 1.2rem;
+    margin-top: 0.7rem;
+    min-height: 1.2rem;
+    text-align: center;
+    font-size: 0.9rem;
+    font-weight: 500;
 }
 
+/* Galería Inteligente: Se adapta al ancho disponible */
 .gallery {
-  margin-top: 0.7rem;
-  display: grid;
-  gap: 0.8rem;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    margin-top: 0.7rem;
+    display: grid;
+    gap: 0.8rem;
+    /* En celulares pequeños fuerza 2 columnas para que quepan más fotos sin scroll infinito */
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
 }
 
 .card {
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 12px;
-  overflow: hidden;
-  background: rgba(3, 9, 24, 0.75);
-  display: grid;
-  grid-template-rows: 180px auto;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    overflow: hidden;
+    background: rgba(3, 9, 24, 0.75);
+    display: flex;
+    flex-direction: column;
 }
 
-.card img,
-.card video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  background: #020514;
+/* Contenedor multimedia cuadrado perfecto (estilo Instagram) */
+.media-container {
+    position: relative;
+    width: 100%;
+    padding-top: 100%;
+    background: #020514;
 }
+
+    .media-container img,
+    .media-container video {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
 
 .card-footer {
-  padding: 0.6rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.5rem;
+    padding: 0.6rem;
+    display: flex;
+    flex-direction: column; /* Elementos apilados en móvil */
+    gap: 0.5rem;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.2);
 }
 
-.card-footer small {
-  color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+    .card-footer small {
+        color: var(--muted);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 0.8rem;
+        text-align: center;
+        width: 100%;
+    }
 
 .download-link {
-  color: var(--accent);
-  text-decoration: none;
-  font-weight: 600;
+    color: #050a1e;
+    background: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.8rem;
+    padding: 6px;
+    border-radius: 6px;
+    text-align: center;
+    width: 100%; /* Botón de descarga completo para que sea fácil dar clic */
+}
+
+/* --- MEDIA QUERIES PARA DISPOSITIVOS MEDIANOS / GRANDES (Tablets y PCs) --- */
+@media (min-width: 600px) {
+    .container {
+        width: min(1100px, 92%);
+        margin: 2rem auto 4rem;
+    }
+
+    h1 {
+        font-size: 2.2rem;
+    }
+
+    h2 {
+        font-size: 1.5rem;
+    }
+
+    /* El formulario se vuelve horizontal en pantallas amplias */
+    .upload-row {
+        flex-direction: row;
+        align-items: center;
+    }
+
+        .upload-row input {
+            flex: 1;
+            width: auto;
+        }
+
+    button {
+        width: auto; /* Los botones ya no abarcan todo el ancho */
+    }
+
+    /* Las tarjetas aumentan de tamaño en pantallas de PC */
+    .gallery {
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 1.2rem;
+    }
+
+    .card-footer {
+        flex-direction: row;
+        justify-content: space-between;
+    }
+
+        .card-footer small {
+            text-align: left;
+            width: auto;
+        }
+
+    .download-link {
+        width: auto;
+        background: transparent;
+        color: var(--accent);
+        padding: 0;
+    }
+
+        .download-link:hover {
+            text-decoration: underline;
+        }
 }
