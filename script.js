@@ -1,3 +1,10 @@
+const CONFIG_FIJA = {
+  cloudName: "dmtiwxvw5",
+  uploadPreset: "preset_fotos_evento", // El preset 'Unsigned' que creaste
+  galleryTag: "evento-gaby",             // La etiqueta para agrupar las fotos
+  folder: "15_Years_Gaby"                // La carpeta donde se guardarán (opcional)
+};
+
 const STORAGE_KEY = "uploadGallery.cloudinaryConfig";
 
 const configForm = document.getElementById("config-form");
@@ -16,13 +23,7 @@ function sanitizeTag(value) {
 }
 
 function getConfig() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
+  return CONFIG_FIJA;
 }
 
 function saveConfig(config) {
