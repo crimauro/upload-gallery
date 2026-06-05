@@ -1,41 +1,21 @@
 const CONFIG_FIJA = {
   cloudName: "dmtiwxvw5",
-  uploadPreset: "preset_fotos_evento", // El preset 'Unsigned' que creaste
-  galleryTag: "evento-gaby",             // La etiqueta para agrupar las fotos
-  folder: "15_Years_Gaby"                // La carpeta donde se guardarán (opcional)
+  uploadPreset: "preset_fotos_evento", // Asegúrate de que coincida con tu Preset Unsigned de Cloudinary
+  galleryTag: "evento-gaby",             
+  folder: "15_Years_Gaby"                
 };
 
-const STORAGE_KEY = "uploadGallery.cloudinaryConfig";
-
-const configForm = document.getElementById("config-form");
 const uploadForm = document.getElementById("upload-form");
 const statusNode = document.getElementById("status");
 const galleryNode = document.getElementById("gallery");
-const refreshBtn = document.getElementById("refresh-btn");
 
 function setStatus(message, isError = false) {
   statusNode.textContent = message;
   statusNode.style.color = isError ? "#ff8b8b" : "#9fffc0";
 }
 
-function sanitizeTag(value) {
-  return value.trim().replace(/\s+/g, "-").replace(/[^a-zA-Z0-9_-]/g, "");
-}
-
 function getConfig() {
   return CONFIG_FIJA;
-}
-
-function saveConfig(config) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
-}
-
-function fillConfigForm(config) {
-  if (!config) return;
-  configForm.cloudName.value = config.cloudName || "";
-  configForm.uploadPreset.value = config.uploadPreset || "";
-  configForm.galleryTag.value = config.galleryTag || "upload-gallery";
-  configForm.folder.value = config.folder || "";
 }
 
 function buildDownloadUrl(cloudName, resource) {
@@ -46,7 +26,7 @@ function buildDownloadUrl(cloudName, resource) {
 function renderGallery(resources, cloudName) {
   galleryNode.innerHTML = "";
   if (!resources.length) {
-    galleryNode.innerHTML = "<p>No hay archivos en la galería.</p>";
+    galleryNode.innerHTML = "<p style='grid-column: 1/-1; text-align: center; color: var(--muted); padding: 20px;'>No hay archivos en la galería todavía.</p>";
     return;
   }
 
@@ -55,6 +35,9 @@ function renderGallery(resources, cloudName) {
     .forEach((resource) => {
       const card = document.createElement("article");
       card.className = "card";
+
+      const mediaContainer = document.createElement("div");
+      mediaContainer.className = "media-container";
 
       const media = resource.resource_type === "video" ? document.createElement("video") : document.createElement("img");
       media.src = resource.secure_url;
@@ -65,11 +48,14 @@ function renderGallery(resources, cloudName) {
         media.loading = "lazy";
       }
 
+      mediaContainer.appendChild(media);
+
       const footer = document.createElement("div");
       footer.className = "card-footer";
 
       const name = document.createElement("small");
-      name.textContent = resource.public_id;
+      const shortName = resource.public_id.split('/').pop() || resource.public_id;
+      name.textContent = shortName.length > 15 ? shortName.substring(0, 12) + "..." : shortName;
 
       const download = document.createElement("a");
       download.className = "download-link";
@@ -79,7 +65,7 @@ function renderGallery(resources, cloudName) {
       download.rel = "noopener noreferrer";
 
       footer.append(name, download);
-      card.append(media, footer);
+      card.append(mediaContainer, footer);
       galleryNode.appendChild(card);
     });
 }
@@ -99,51 +85,24 @@ async function fetchResourcesByType(cloudName, galleryTag, resourceType) {
 
 async function refreshGallery() {
   const config = getConfig();
-  if (!config) {
-    setStatus("Guarda la configuración de Cloudinary primero.", true);
-    return;
-  }
-
-  setStatus("Cargando galería...");
+  setStatus("Actualizando galería...");
   try {
     const [images, videos] = await Promise.all([
       fetchResourcesByType(config.cloudName, config.galleryTag, "image"),
       fetchResourcesByType(config.cloudName, config.galleryTag, "video"),
     ]);
     renderGallery([...images, ...videos], config.cloudName);
-    setStatus("Galería actualizada.");
+    setStatus("Galería al día.");
   } catch (error) {
     setStatus(`No se pudo cargar la galería: ${error.message}`, true);
   }
 }
-
-configForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const cloudName = configForm.cloudName.value.trim();
-  const uploadPreset = configForm.uploadPreset.value.trim();
-  const galleryTag = sanitizeTag(configForm.galleryTag.value);
-  const folder = configForm.folder.value.trim();
-
-  if (!cloudName || !uploadPreset || !galleryTag) {
-    setStatus("Completa Cloud Name, Upload Preset y Gallery Tag.", true);
-    return;
-  }
-
-  const config = { cloudName, uploadPreset, galleryTag, folder };
-  saveConfig(config);
-  configForm.galleryTag.value = galleryTag;
-  setStatus("Configuración guardada.");
-});
 
 uploadForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const config = getConfig();
   const files = document.getElementById("media-files").files;
 
-  if (!config) {
-    setStatus("Guarda la configuración antes de subir.", true);
-    return;
-  }
   if (!files.length) {
     setStatus("Selecciona al menos un archivo.", true);
     return;
@@ -176,14 +135,12 @@ uploadForm.addEventListener("submit", async (event) => {
     }
 
     uploadForm.reset();
-    setStatus("Carga completada.");
-    await refreshGallery();
+    setStatus("¡Carga completada con éxito!");
+    await refreshGallery(); // Esto garantiza la actualización automática tras subir
   } catch (error) {
     setStatus(`Error al subir: ${error.message}`, true);
   }
 });
 
-refreshBtn.addEventListener("click", refreshGallery);
-
-fillConfigForm(getConfig());
+// Carga las fotos automáticamente en tiempo real al entrar a la página
 refreshGallery();
