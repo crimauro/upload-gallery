@@ -125,6 +125,38 @@ button {
     font-weight: 500;
 }
 
+/* Barra de progreso de upload */
+.progress-wrap {
+    margin-top: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+}
+
+.progress-bar-track {
+    flex: 1;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    transition: width 0.2s ease;
+}
+
+.progress-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--accent);
+    min-width: 38px;
+    text-align: right;
+}
+
 /* Galería Inteligente: Se adapta al ancho disponible */
 .gallery {
     margin-top: 0.7rem;
