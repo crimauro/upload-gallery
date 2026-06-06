@@ -43,7 +43,7 @@ function buildViewUrl(cloudName, resource) {
 // Paginación
 // Cambia ITEMS_POR_PAGINA para ajustar cuántas tarjetas muestra cada página.
 // ─────────────────────────────────────────────
-const ITEMS_POR_PAGINA = 50;
+const ITEMS_POR_PAGINA = 48;
 let paginaActual = 1;
 
 // ─────────────────────────────────────────────
