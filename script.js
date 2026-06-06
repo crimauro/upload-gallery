@@ -9,17 +9,12 @@ const uploadForm = document.getElementById("upload-form");
 const statusNode  = document.getElementById("status");
 const galleryNode = document.getElementById("gallery");
 
-// Estado local en memoria
 let currentResources = [];
 
 // ─────────────────────────────────────────────
 // URLs de Cloudinary
 // ─────────────────────────────────────────────
 
-/**
- * Thumbnail optimizado: 300×300, formato auto (convierte HEIC→WebP/JPEG),
- * calidad baja para carga rápida.
- */
 function buildThumbnailUrl(cloudName, resource) {
   const cn  = encodeURIComponent(cloudName);
   const pid = resource.public_id;
@@ -29,7 +24,6 @@ function buildThumbnailUrl(cloudName, resource) {
   return `https://res.cloudinary.com/${cn}/image/upload/w_300,h_300,c_fill,f_auto,q_auto:low/${pid}`;
 }
 
-/** URL de descarga del archivo original. */
 function buildDownloadUrl(cloudName, resource) {
   const ext = resource.format ? `.${resource.format}` : "";
   return `https://res.cloudinary.com/${encodeURIComponent(cloudName)}/${resource.resource_type}/upload/fl_attachment/${resource.public_id}${ext}`;
@@ -60,11 +54,11 @@ function renderGallery(resources, cloudName) {
 
       if (isVideo) {
         const poster = document.createElement("img");
-        poster.src    = buildThumbnailUrl(cloudName, resource);
-        poster.alt    = resource.public_id;
+        poster.src     = buildThumbnailUrl(cloudName, resource);
+        poster.alt     = resource.public_id;
         poster.loading = "lazy";
         poster.style.cursor = "pointer";
-        poster.title  = "Ver video";
+        poster.title   = "Ver video";
         poster.addEventListener("load",  () => poster.classList.add("loaded"));
         poster.addEventListener("error", () => { poster.style.opacity = "1"; });
         poster.addEventListener("click", () => window.open(resource.secure_url, "_blank"));
@@ -77,11 +71,11 @@ function renderGallery(resources, cloudName) {
         mediaContainer.appendChild(playIcon);
       } else {
         const img = document.createElement("img");
-        img.src    = buildThumbnailUrl(cloudName, resource);
-        img.alt    = resource.public_id;
+        img.src     = buildThumbnailUrl(cloudName, resource);
+        img.alt     = resource.public_id;
         img.loading = "lazy";
         img.style.cursor = "pointer";
-        img.title  = "Ver imagen completa";
+        img.title   = "Ver imagen completa";
         img.addEventListener("load",  () => img.classList.add("loaded"));
         img.addEventListener("error", () => { img.style.opacity = "1"; });
         img.addEventListener("click", () => window.open(resource.secure_url, "_blank"));
@@ -110,53 +104,45 @@ function renderGallery(resources, cloudName) {
 
 // ─────────────────────────────────────────────
 // Carga desde Cloudinary
-// Estrategia de 3 capas para máxima compatibilidad:
-//   1) /list/<tag>.json   → rápido, requiere "Resource list" habilitado en Cloudinary
-//   2) /list/<folder>.json → alternativa por carpeta (también requiere habilitarlo)
-//   3) Fallback visual con instrucciones si ambos fallan
 // ─────────────────────────────────────────────
 
-/**
- * Intenta obtener recursos desde el endpoint de listing por TAG.
- * Devuelve array de recursos o [] si falla / está deshabilitado.
- */
 async function fetchByTag(cloudName, tag, resourceType) {
   try {
-    const url = `https://res.cloudinary.com/${encodeURIComponent(cloudName)}/${resourceType}/list/${encodeURIComponent(tag)}.json?t=${Date.now()}`;
-    const res  = await fetch(url);
-    if (!res.ok) return [];
+    // SIN ?t=Date.now() — ese parámetro rompe el caché de CDN y puede
+    // triggerar verificaciones de allowlist en cada request único.
+    const url = `https://res.cloudinary.com/${encodeURIComponent(cloudName)}/${resourceType}/list/${encodeURIComponent(tag)}.json`;
+    const res  = await fetch(url, { cache: "no-store" });
+    if (!res.ok) {
+      console.warn(`[Cloudinary] fetchByTag ${resourceType}/${tag}: HTTP ${res.status}`);
+      return { resources: [], error: res.status };
+    }
     const data = await res.json();
     const items = Array.isArray(data.resources) ? data.resources : [];
-    // Aseguramos que cada recurso tenga resource_type (no siempre lo incluye este endpoint)
-    return items.map(r => ({ ...r, resource_type: resourceType }));
-  } catch {
-    return [];
+    return { resources: items.map(r => ({ ...r, resource_type: resourceType })), error: null };
+  } catch (e) {
+    console.warn(`[Cloudinary] fetchByTag error:`, e);
+    return { resources: [], error: e.message };
   }
 }
 
-/**
- * Intenta obtener recursos desde el endpoint de listing por CARPETA.
- * Cloudinary expone /image/list/<folder>.json si "Resource list" está activo.
- * La carpeta se pasa como path, e.g. "15_Years_Gaby".
- */
 async function fetchByFolder(cloudName, folder, resourceType) {
   try {
-    // El endpoint de lista por carpeta usa el path con slashes codificados
     const encodedFolder = folder.split("/").map(encodeURIComponent).join("/");
-    const url = `https://res.cloudinary.com/${encodeURIComponent(cloudName)}/${resourceType}/list/${encodedFolder}.json?t=${Date.now()}`;
-    const res  = await fetch(url);
-    if (!res.ok) return [];
+    const url = `https://res.cloudinary.com/${encodeURIComponent(cloudName)}/${resourceType}/list/${encodedFolder}.json`;
+    const res  = await fetch(url, { cache: "no-store" });
+    if (!res.ok) {
+      console.warn(`[Cloudinary] fetchByFolder ${resourceType}/${folder}: HTTP ${res.status}`);
+      return { resources: [], error: res.status };
+    }
     const data = await res.json();
     const items = Array.isArray(data.resources) ? data.resources : [];
-    return items.map(r => ({ ...r, resource_type: resourceType }));
-  } catch {
-    return [];
+    return { resources: items.map(r => ({ ...r, resource_type: resourceType })), error: null };
+  } catch (e) {
+    console.warn(`[Cloudinary] fetchByFolder error:`, e);
+    return { resources: [], error: e.message };
   }
 }
 
-/**
- * Deduplica recursos por public_id (por si ambas estrategias devuelven los mismos).
- */
 function dedup(resources) {
   const seen = new Set();
   return resources.filter(r => {
@@ -166,27 +152,46 @@ function dedup(resources) {
   });
 }
 
-/**
- * Muestra un mensaje de ayuda cuando Cloudinary no devuelve nada,
- * explicando qué configuración falta.
- */
-function showConfigHelp() {
+// Panel de error con diagnóstico específico según el código HTTP
+function showErrorPanel(httpStatus) {
+  let title, body, fix;
+
+  if (httpStatus === 403) {
+    title = "🔒 Cloudinary está bloqueando las peticiones (403)";
+    body  = `El campo <strong>"Allowed strict referral domains"</strong> en tu cuenta tiene dominios configurados
+             y está rechazando peticiones desde esta página.`;
+    fix   = `
+      <li>Ve a <strong>cloudinary.com → Settings → Security</strong></li>
+      <li>Busca el campo <strong>"Allowed strict referral domains"</strong></li>
+      <li><strong>Borra todo el contenido</strong> de ese campo (déjalo vacío)</li>
+      <li>Guarda y recarga esta página</li>
+      <li>Si prefieres restringir el acceso, agrega el dominio exacto donde
+          está alojada tu app (ej: <code>tudominio.com</code>)</li>`;
+  } else if (httpStatus === 404) {
+    title = "📂 No se encontró la lista (404)";
+    body  = `El tag <strong>"${CONFIG_FIJA.galleryTag}"</strong> o la carpeta <strong>"${CONFIG_FIJA.folder}"</strong>
+             no tienen recursos aún, o el <em>Resource list</em> no está habilitado.`;
+    fix   = `
+      <li>Ve a <strong>cloudinary.com → Settings → Security</strong></li>
+      <li>En <strong>"Restricted image types"</strong>, asegúrate de que
+          <strong>"Resource list"</strong> NO esté marcado (sin check = habilitado)</li>
+      <li>Sube al menos una imagen para crear la lista</li>`;
+  } else {
+    title = "⚠️ Error al conectar con Cloudinary";
+    body  = `Se obtuvo un error inesperado al intentar cargar la galería.`;
+    fix   = `<li>Verifica tu conexión a internet</li>
+             <li>Abre la consola del navegador (F12) y revisa los errores en rojo</li>`;
+  }
+
   galleryNode.innerHTML = `
-    <div style="grid-column:1/-1; background:rgba(139,125,255,0.1); border:1px solid rgba(139,125,255,0.4);
-                border-radius:12px; padding:20px; color:var(--text); font-size:0.88rem; line-height:1.6;">
-      <strong style="color:var(--accent); font-size:1rem;">⚙️ Configuración requerida en Cloudinary</strong>
-      <p style="margin:10px 0 6px; color:var(--muted);">
-        La galería no puede cargar porque el <em>Resource list</em> no está habilitado en tu cuenta.
-        Sigue estos pasos (solo se hace una vez):
-      </p>
-      <ol style="margin:0; padding-left:1.2rem; color:var(--muted);">
-        <li>Ve a <strong style="color:var(--text);">cloudinary.com → Settings → Security</strong></li>
-        <li>Busca la sección <strong style="color:var(--text);">"Restricted image types"</strong></li>
-        <li>Desmarca la opción <strong style="color:var(--text);">"Resource list"</strong> (o activa "Enable resource list")</li>
-        <li>Guarda los cambios y recarga esta página</li>
-      </ol>
-      <p style="margin:10px 0 0; color:var(--muted); font-size:0.82rem;">
-        Alternativa: sube una imagen ahora y aparecerá automáticamente aunque el listing esté deshabilitado.
+    <div style="grid-column:1/-1; background:rgba(139,125,255,0.08); border:1px solid rgba(139,125,255,0.35);
+                border-radius:12px; padding:22px 24px; color:var(--text); font-size:0.87rem; line-height:1.7;">
+      <strong style="color:var(--accent); font-size:0.97rem; display:block; margin-bottom:8px;">${title}</strong>
+      <p style="margin:0 0 10px; color:var(--muted);">${body}</p>
+      <p style="margin:0 0 6px; color:var(--text); font-weight:600;">Cómo solucionarlo:</p>
+      <ol style="margin:0 0 12px; padding-left:1.3rem; color:var(--muted);">${fix}</ol>
+      <p style="margin:0; color:var(--muted); font-size:0.8rem; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px;">
+        💡 <em>Mientras tanto, las imágenes que subas en esta sesión sí aparecerán en la galería inmediatamente.</em>
       </p>
     </div>`;
 }
@@ -195,43 +200,42 @@ async function refreshGallery(silent = false) {
   const { cloudName, galleryTag, folder } = CONFIG_FIJA;
   if (!silent) setStatus("Cargando galería…");
 
-  try {
-    // ── Capa 1: listing por TAG (imagen + video) ──
-    const [imgByTag, vidByTag] = await Promise.all([
-      fetchByTag(cloudName, galleryTag, "image"),
-      fetchByTag(cloudName, galleryTag, "video"),
+  // Capa 1: por TAG
+  const [imgTag, vidTag] = await Promise.all([
+    fetchByTag(cloudName, galleryTag, "image"),
+    fetchByTag(cloudName, galleryTag, "video"),
+  ]);
+
+  let fetched = dedup([...imgTag.resources, ...vidTag.resources]);
+  let lastError = imgTag.error || vidTag.error;
+
+  // Capa 2: por CARPETA (solo si la capa 1 no trajo nada)
+  if (fetched.length === 0 && folder) {
+    const [imgFolder, vidFolder] = await Promise.all([
+      fetchByFolder(cloudName, folder, "image"),
+      fetchByFolder(cloudName, folder, "video"),
     ]);
-    let fetched = dedup([...imgByTag, ...vidByTag]);
+    fetched = dedup([...imgFolder.resources, ...vidFolder.resources]);
+    lastError = lastError || imgFolder.error || vidFolder.error;
+  }
 
-    // ── Capa 2: si el tag no devolvió nada, intentamos por CARPETA ──
-    if (fetched.length === 0 && folder) {
-      const [imgByFolder, vidByFolder] = await Promise.all([
-        fetchByFolder(cloudName, folder, "image"),
-        fetchByFolder(cloudName, folder, "video"),
-      ]);
-      fetched = dedup([...imgByFolder, ...vidByFolder]);
-    }
-
-    if (fetched.length > 0) {
-      currentResources = fetched;
-      renderGallery(currentResources, cloudName);
-      if (!silent) setStatus(`Galería al día · ${fetched.length} archivo${fetched.length !== 1 ? "s" : ""}`);
-    } else if (currentResources.length > 0) {
-      // Tenemos recursos en memoria (recién subidos): los mantenemos
-      renderGallery(currentResources, cloudName);
-      if (!silent) setStatus("Galería al día.");
-    } else {
-      // ── Capa 3: nada de nada → mostrar ayuda de configuración ──
-      showConfigHelp();
-      if (!silent) setStatus("Revisa la configuración de Cloudinary.", true);
-    }
-  } catch (error) {
-    if (!silent) setStatus(`Error al cargar galería: ${error.message}`, true);
+  if (fetched.length > 0) {
+    currentResources = fetched;
+    renderGallery(currentResources, cloudName);
+    if (!silent) setStatus(`Galería al día · ${fetched.length} archivo${fetched.length !== 1 ? "s" : ""}`);
+  } else if (currentResources.length > 0) {
+    // Hay recursos en memoria (recién subidos en esta sesión): los conservamos
+    renderGallery(currentResources, cloudName);
+    if (!silent) setStatus("Galería al día.");
+  } else {
+    // Sin recursos y con error: mostrar panel de diagnóstico específico
+    showErrorPanel(lastError);
+    if (!silent) setStatus("No se pudo cargar la galería.", true);
   }
 }
 
 // ─────────────────────────────────────────────
-// Helpers de UI
+// Helpers
 // ─────────────────────────────────────────────
 
 function setStatus(message, isError = false) {
@@ -239,16 +243,14 @@ function setStatus(message, isError = false) {
   statusNode.style.color = isError ? "#ff8b8b" : "#9fffc0";
 }
 
-function getConfig() { return CONFIG_FIJA; }
-
 // ─────────────────────────────────────────────
 // Upload
 // ─────────────────────────────────────────────
 
 uploadForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const config = getConfig();
-  const files  = document.getElementById("media-files").files;
+  const { cloudName, uploadPreset, galleryTag, folder } = CONFIG_FIJA;
+  const files = document.getElementById("media-files").files;
 
   if (!files.length) {
     setStatus("Selecciona al menos un archivo.", true);
@@ -257,19 +259,18 @@ uploadForm.addEventListener("submit", async (event) => {
 
   const total    = files.length;
   let   uploaded = 0;
-
   setStatus(`Subiendo archivos… 0 / ${total}`);
 
   try {
     for (const file of files) {
       const formData = new FormData();
       formData.append("file",          file);
-      formData.append("upload_preset", config.uploadPreset);
-      formData.append("tags",          config.galleryTag);
-      if (config.folder) formData.append("folder", config.folder);
+      formData.append("upload_preset", uploadPreset);
+      formData.append("tags",          galleryTag);
+      if (folder) formData.append("folder", folder);
 
       const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${encodeURIComponent(config.cloudName)}/auto/upload`,
+        `https://api.cloudinary.com/v1_1/${encodeURIComponent(cloudName)}/auto/upload`,
         { method: "POST", body: formData }
       );
 
@@ -278,22 +279,18 @@ uploadForm.addEventListener("submit", async (event) => {
         throw new Error(`${file.name}: ${payload.error?.message || "Error en subida"}`);
       }
 
-      // La respuesta del upload trae todos los metadatos → galería inmediata
       const uploadedResource = await response.json();
-
       uploaded++;
       setStatus(`Subiendo archivos… ${uploaded} / ${total}`);
 
       currentResources = [uploadedResource, ...currentResources];
-      renderGallery(currentResources, config.cloudName);
+      renderGallery(currentResources, cloudName);
     }
 
     uploadForm.reset();
     setStatus(`¡${total === 1 ? "1 archivo subido" : `${total} archivos subidos`} con éxito! ✓`);
 
-    // Sincronización silenciosa 4 s después (el CDN suele tardar ese tiempo)
     setTimeout(() => refreshGallery(true), 4000);
-
   } catch (error) {
     setStatus(`Error al subir: ${error.message}`, true);
   }
