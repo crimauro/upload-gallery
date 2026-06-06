@@ -90,6 +90,9 @@ function updateSelectButtons() {
   const btnSelAll = document.getElementById("btn-select-all");
   if (!btnSel) return;
 
+  // Clase en body para que CSS refleje el modo de selección
+  document.body.classList.toggle("select-mode", selectMode);
+
   // "Seleccionar" se marca como activo cuando el modo está encendido
   btnSel.classList.toggle("ctrl-btn--active", selectMode);
   btnSel.textContent = selectMode ? "Cancelar selección" : "Seleccionar";
@@ -139,20 +142,13 @@ function buildCard(resource, cloudName) {
   card.className = "card" + (checked ? " selected" : "");
   card.dataset.pid = pid;
 
-  // Checkbox — oculto por defecto, visible solo en modo selección
-  const checkbox = document.createElement("div");
-  checkbox.className = "card-checkbox"
-    + (checked                        ? " checked" : "")
-    + (selectMode || checked          ? " visible" : "");
-  checkbox.innerHTML = checked ? "✓" : "";
-  checkbox.addEventListener("click", (e) => {
-    e.stopPropagation();
+  // Función centralizada para toggle de selección de esta tarjeta
+  function toggleCardSelection() {
     if (selectedIds.has(pid)) {
       selectedIds.delete(pid);
       card.classList.remove("selected");
       checkbox.classList.remove("checked");
       checkbox.innerHTML = "";
-      // Si no queda nada seleccionado y no hay modo activo, ocultar checkbox
       if (!selectMode) checkbox.classList.remove("visible");
     } else {
       selectedIds.add(pid);
@@ -162,6 +158,17 @@ function buildCard(resource, cloudName) {
     }
     updateSelectButtons();
     updateDownloadBar();
+  }
+
+  // Checkbox — oculto por defecto, visible solo en modo selección
+  const checkbox = document.createElement("div");
+  checkbox.className = "card-checkbox"
+    + (checked                        ? " checked" : "")
+    + (selectMode || checked          ? " visible" : "");
+  checkbox.innerHTML = checked ? "✓" : "";
+  checkbox.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleCardSelection();
   });
 
   const mediaContainer = document.createElement("div");
@@ -172,11 +179,8 @@ function buildCard(resource, cloudName) {
     poster.src     = buildThumbnailUrl(cloudName, resource);
     poster.alt     = pid;
     poster.loading = "lazy";
-    poster.style.cursor = "pointer";
-    poster.title   = "Ver video";
     poster.addEventListener("load",  () => poster.classList.add("loaded"));
     poster.addEventListener("error", () => { poster.style.opacity = "1"; });
-    poster.addEventListener("click", () => window.open(resource.secure_url, "_blank"));
 
     const playIcon = document.createElement("div");
     playIcon.className = "play-icon";
@@ -187,13 +191,25 @@ function buildCard(resource, cloudName) {
     img.src     = buildThumbnailUrl(cloudName, resource);
     img.alt     = pid;
     img.loading = "lazy";
-    img.style.cursor = "pointer";
-    img.title   = "Ver imagen completa";
     img.addEventListener("load",  () => img.classList.add("loaded"));
     img.addEventListener("error", () => { img.style.opacity = "1"; });
-    img.addEventListener("click", () => window.open(buildViewUrl(cloudName, resource), "_blank"));
     mediaContainer.appendChild(img);
   }
+
+  // Click en el área de media: seleccionar/deseleccionar en modo selección,
+  // abrir en otra pestaña fuera de ese modo.
+  mediaContainer.addEventListener("click", (e) => {
+    if (selectMode) {
+      e.preventDefault();
+      toggleCardSelection();
+    } else {
+      if (resource.resource_type === "video") {
+        window.open(resource.secure_url, "_blank");
+      } else {
+        window.open(buildViewUrl(cloudName, resource), "_blank");
+      }
+    }
+  });
 
   const footer = document.createElement("div");
   footer.className = "card-footer";

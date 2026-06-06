@@ -205,32 +205,32 @@ button:active { transform: scale(0.98); }
 /* ── Checkbox de selección ── */
 .card-checkbox {
     position: absolute;
-    top: 7px;
-    left: 7px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.7);
     z-index: 10;
-    width: 24px;
-    height: 24px;
+    width: 52px;
+    height: 52px;
     border-radius: 50%;
-    border: 2px solid rgba(255,255,255,0.7);
+    border: 3px solid rgba(255,255,255,0.85);
     background: rgba(0,0,0,0.45);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    font-size: 0.75rem;
+    font-size: 1.4rem;
     font-weight: 700;
     color: #050a1e;
     /* Oculto por defecto */
     opacity: 0;
     pointer-events: none;
-    transform: scale(0.7);
     transition: opacity 0.18s ease, transform 0.18s ease, background 0.15s ease;
 }
 /* Visible solo cuando tiene clase .visible */
 .card-checkbox.visible {
     opacity: 1;
     pointer-events: auto;
-    transform: scale(1);
+    transform: translate(-50%, -50%) scale(1);
 }
 .card-checkbox:hover { border-color: var(--accent); }
 .card-checkbox.checked {
@@ -244,9 +244,15 @@ button:active { transform: scale(0.98); }
     position: relative;
     width: 100%;
     padding-top: 100%;
+    cursor: pointer;
     background: linear-gradient(90deg, #090f26 25%, #111a3a 50%, #090f26 75%);
     background-size: 200% 100%;
     animation: skeleton-shimmer 1.4s ease infinite;
+}
+/* En modo selección el cursor indica que toda la imagen es seleccionable */
+body.select-mode .media-container {
+    cursor: pointer;
+    user-select: none;
 }
 @keyframes skeleton-shimmer {
     0%   { background-position: 200% 0; }
