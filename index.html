@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Upload Gallery</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="aurora"></div>
+    <main class="container">
+      <header class="hero">
+        <h1>Upload Gallery</h1>
+        <p id="hero-subtitle"></p>
+      </header>
+
+      <section class="panel">
+        <h2>Subir archivos</h2>
+        <form id="upload-form" class="upload-row">
+          <input id="media-files" type="file" multiple required />
+          <button type="submit">Subir</button>
+        </form>
+        <div id="progress-wrap" class="progress-wrap" hidden>
+          <div class="progress-bar-track">
+            <div id="progress-bar" class="progress-bar-fill"></div>
+          </div>
+          <span id="progress-label" class="progress-label">0%</span>
+        </div>
+        <p id="status" class="status" aria-live="polite"></p>
+      </section>
+
+      <section class="panel">
+        <div class="gallery-header">
+          <h2>Galería</h2>
+          <div class="gallery-controls" id="gallery-controls" hidden>
+            <button id="btn-select"     class="ctrl-btn" onclick="toggleSelectMode()">Seleccionar</button>
+            <button id="btn-select-all" class="ctrl-btn" onclick="toggleSelectAll()">Seleccionar todo</button>
+          </div>
+        </div>
+        <div id="gallery" class="gallery"></div>
+      </section>
+    </main>
+
+    <!-- Botón flotante: visible solo cuando hay ítems seleccionados -->
+    <div id="download-bar" class="download-bar" style="display:none">
+      <span id="dl-count" class="dl-count"></span>
+      <button id="dl-btn" class="dl-btn-primary" onclick="downloadSelected()">⬇ Descargar</button>
+      <button class="dl-btn-close" onclick="clearSelection()" title="Cancelar selección">✕</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="./script.js"></script>
+  </body>
+</html>
