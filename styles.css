@@ -141,6 +141,12 @@ button {
     background: rgba(3, 9, 24, 0.75);
     display: flex;
     flex-direction: column;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55);
 }
 
 /* Contenedor multimedia cuadrado perfecto (estilo Instagram) */
@@ -148,7 +154,15 @@ button {
     position: relative;
     width: 100%;
     padding-top: 100%;
-    background: #020514;
+    /* Skeleton animado mientras carga el thumbnail */
+    background: linear-gradient(90deg, #090f26 25%, #111a3a 50%, #090f26 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.4s ease infinite;
+}
+
+@keyframes skeleton-shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
 }
 
     .media-container img,
@@ -159,7 +173,34 @@ button {
         width: 100%;
         height: 100%;
         object-fit: cover;
+        /* Fade-in suave al cargar cada thumbnail */
+        opacity: 0;
+        transition: opacity 0.35s ease;
     }
+
+    .media-container img.loaded {
+        opacity: 1;
+        animation: none;
+    }
+
+/* Ícono ▶ superpuesto en tarjetas de video */
+.play-icon {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.30);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+}
+
+.card:hover .play-icon {
+    opacity: 1;
+}
 
 .card-footer {
     padding: 0.6rem;
