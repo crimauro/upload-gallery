@@ -152,46 +152,26 @@ function dedup(resources) {
   });
 }
 
-// Panel de error con diagnóstico específico según el código HTTP
+// Registra el error técnico en consola (solo visible para desarrolladores)
+// y muestra un mensaje discreto y amigable al usuario final.
 function showErrorPanel(httpStatus) {
-  let title, body, fix;
-
-  if (httpStatus === 403) {
-    title = "🔒 Cloudinary está bloqueando las peticiones (403)";
-    body  = `El campo <strong>"Allowed strict referral domains"</strong> en tu cuenta tiene dominios configurados
-             y está rechazando peticiones desde esta página.`;
-    fix   = `
-      <li>Ve a <strong>cloudinary.com → Settings → Security</strong></li>
-      <li>Busca el campo <strong>"Allowed strict referral domains"</strong></li>
-      <li><strong>Borra todo el contenido</strong> de ese campo (déjalo vacío)</li>
-      <li>Guarda y recarga esta página</li>
-      <li>Si prefieres restringir el acceso, agrega el dominio exacto donde
-          está alojada tu app (ej: <code>tudominio.com</code>)</li>`;
-  } else if (httpStatus === 404) {
-    title = "📂 No se encontró la lista (404)";
-    body  = `El tag <strong>"${CONFIG_FIJA.galleryTag}"</strong> o la carpeta <strong>"${CONFIG_FIJA.folder}"</strong>
-             no tienen recursos aún, o el <em>Resource list</em> no está habilitado.`;
-    fix   = `
-      <li>Ve a <strong>cloudinary.com → Settings → Security</strong></li>
-      <li>En <strong>"Restricted image types"</strong>, asegúrate de que
-          <strong>"Resource list"</strong> NO esté marcado (sin check = habilitado)</li>
-      <li>Sube al menos una imagen para crear la lista</li>`;
-  } else {
-    title = "⚠️ Error al conectar con Cloudinary";
-    body  = `Se obtuvo un error inesperado al intentar cargar la galería.`;
-    fix   = `<li>Verifica tu conexión a internet</li>
-             <li>Abre la consola del navegador (F12) y revisa los errores en rojo</li>`;
-  }
+  const errorMap = {
+    401: "Tag no encontrado o sin recursos públicos (401) — asignar tag a los recursos existentes en Cloudinary Media Library.",
+    403: "Petición bloqueada por allowlist (403) — limpiar 'Allowed strict referral domains' en Cloudinary Settings > Security.",
+    404: "Endpoint de lista no existe (404) — habilitar 'Resource list' en Cloudinary Settings > Security > Restricted image types.",
+  };
+  console.error(
+    `[Upload Gallery] Error al cargar la galería: ${errorMap[httpStatus] || `HTTP ${httpStatus} inesperado.`}`
+  );
 
   galleryNode.innerHTML = `
-    <div style="grid-column:1/-1; background:rgba(139,125,255,0.08); border:1px solid rgba(139,125,255,0.35);
-                border-radius:12px; padding:22px 24px; color:var(--text); font-size:0.87rem; line-height:1.7;">
-      <strong style="color:var(--accent); font-size:0.97rem; display:block; margin-bottom:8px;">${title}</strong>
-      <p style="margin:0 0 10px; color:var(--muted);">${body}</p>
-      <p style="margin:0 0 6px; color:var(--text); font-weight:600;">Cómo solucionarlo:</p>
-      <ol style="margin:0 0 12px; padding-left:1.3rem; color:var(--muted);">${fix}</ol>
-      <p style="margin:0; color:var(--muted); font-size:0.8rem; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px;">
-        💡 <em>Mientras tanto, las imágenes que subas en esta sesión sí aparecerán en la galería inmediatamente.</em>
+    <div style="grid-column:1/-1; text-align:center; padding:40px 20px; color:var(--muted);">
+      <p style="font-size:2rem; margin:0 0 12px;">📷</p>
+      <p style="margin:0 0 6px; color:var(--text); font-size:0.95rem;">
+        La galería no está disponible en este momento.
+      </p>
+      <p style="margin:0; font-size:0.85rem;">
+        Puedes seguir subiendo fotos — aparecerán aquí de inmediato.
       </p>
     </div>`;
 }
@@ -207,7 +187,13 @@ async function refreshGallery(silent = false) {
   ]);
 
   let fetched = dedup([...imgTag.resources, ...vidTag.resources]);
-  let lastError = imgTag.error || vidTag.error;
+
+  // Elige el error más informativo: 401 > 403 > 404 > otros
+  const errorPriority = (e) => ({ 401: 4, 403: 3, 404: 2 }[e] || 1);
+  const pickBestError = (...codes) =>
+    codes.filter(Boolean).sort((a, b) => errorPriority(b) - errorPriority(a))[0] || null;
+
+  let lastError = pickBestError(imgTag.error, vidTag.error);
 
   // Capa 2: por CARPETA (solo si la capa 1 no trajo nada)
   if (fetched.length === 0 && folder) {
@@ -216,7 +202,7 @@ async function refreshGallery(silent = false) {
       fetchByFolder(cloudName, folder, "video"),
     ]);
     fetched = dedup([...imgFolder.resources, ...vidFolder.resources]);
-    lastError = lastError || imgFolder.error || vidFolder.error;
+    lastError = pickBestError(lastError, imgFolder.error, vidFolder.error);
   }
 
   if (fetched.length > 0) {
