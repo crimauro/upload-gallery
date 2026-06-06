@@ -233,6 +233,68 @@ function setStatus(message, isError = false) {
 // Upload
 // ─────────────────────────────────────────────
 
+// Límite de Cloudinary según plan:
+// Free: 100 MB por archivo | Paid: hasta 5 GB
+const MAX_FILE_MB  = 100;
+const MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024;
+
+const progressWrap  = document.getElementById("progress-wrap");
+const progressBar   = document.getElementById("progress-bar");
+const progressLabel = document.getElementById("progress-label");
+
+function setProgress(percent) {
+  progressBar.style.width  = `${percent}%`;
+  progressLabel.textContent = `${Math.round(percent)}%`;
+}
+
+function showProgress(visible) {
+  progressWrap.hidden = !visible;
+  if (!visible) setProgress(0);
+}
+
+/**
+ * Sube un archivo a Cloudinary usando XMLHttpRequest para poder
+ * reportar el progreso real de transferencia byte a byte.
+ * Devuelve una Promise con el recurso creado o lanza un Error.
+ */
+function uploadWithProgress(file, formData, cloudName, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `https://api.cloudinary.com/v1_1/${encodeURIComponent(cloudName)}/auto/upload`);
+
+    xhr.upload.addEventListener("progress", (e) => {
+      if (e.lengthComputable) onProgress(e.loaded / e.total);
+    });
+
+    xhr.addEventListener("load", () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          resolve(JSON.parse(xhr.responseText));
+        } catch {
+          reject(new Error("Respuesta inválida de Cloudinary"));
+        }
+      } else {
+        let msg = `Error ${xhr.status}`;
+        if (xhr.status === 413) {
+          msg = `El archivo supera el límite de ${MAX_FILE_MB} MB permitido por Cloudinary.`;
+        } else {
+          try {
+            const payload = JSON.parse(xhr.responseText);
+            msg = payload.error?.message || msg;
+          } catch { /* sin JSON */ }
+        }
+        reject(new Error(msg));
+      }
+    });
+
+    xhr.addEventListener("error",  () => reject(new Error("Error de red al subir el archivo.")));
+    xhr.addEventListener("abort",  () => reject(new Error("Subida cancelada.")));
+    xhr.addEventListener("timeout",() => reject(new Error("Tiempo de espera agotado.")));
+
+    xhr.send(formData);
+  });
+}
+
 uploadForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const { cloudName, uploadPreset, galleryTag, folder } = CONFIG_FIJA;
@@ -243,9 +305,23 @@ uploadForm.addEventListener("submit", async (event) => {
     return;
   }
 
+  // Validar tamaño antes de intentar subir
+  const oversized = [...files].filter(f => f.size > MAX_FILE_BYTES);
+  if (oversized.length) {
+    const names = oversized.map(f => `• ${f.name} (${(f.size / 1024 / 1024).toFixed(0)} MB)`).join("\n");
+    setStatus(
+      `${oversized.length === 1 ? "Este archivo supera" : "Estos archivos superan"} el límite de ${MAX_FILE_MB} MB:\n${names}`,
+      true
+    );
+    return;
+  }
+
   const total    = files.length;
   let   uploaded = 0;
-  setStatus(`Subiendo archivos… 0 / ${total}`);
+
+  showProgress(true);
+  setProgress(0);
+  setStatus(`Subiendo archivo 1 de ${total}…`);
 
   try {
     for (const file of files) {
@@ -255,29 +331,34 @@ uploadForm.addEventListener("submit", async (event) => {
       formData.append("tags",          galleryTag);
       if (folder) formData.append("folder", folder);
 
-      const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${encodeURIComponent(cloudName)}/auto/upload`,
-        { method: "POST", body: formData }
+      // El progreso total = progreso de archivos ya subidos + progreso del archivo actual
+      const uploadedResource = await uploadWithProgress(
+        file,
+        formData,
+        cloudName,
+        (fileProgress) => {
+          // Progreso global: fracción de archivos completos + fracción actual
+          const globalPercent = ((uploaded + fileProgress) / total) * 100;
+          setProgress(globalPercent);
+          const mb = (file.size / 1024 / 1024).toFixed(0);
+          setStatus(`Subiendo ${uploaded + 1} de ${total} · ${file.name.substring(0, 20)}${file.name.length > 20 ? "…" : ""} (${mb} MB)`);
+        }
       );
 
-      if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error(`${file.name}: ${payload.error?.message || "Error en subida"}`);
-      }
-
-      const uploadedResource = await response.json();
       uploaded++;
-      setStatus(`Subiendo archivos… ${uploaded} / ${total}`);
-
+      setProgress((uploaded / total) * 100);
       currentResources = [uploadedResource, ...currentResources];
       renderGallery(currentResources, cloudName);
     }
 
+    showProgress(false);
     uploadForm.reset();
     setStatus(`¡${total === 1 ? "1 archivo subido" : `${total} archivos subidos`} con éxito! ✓`);
 
     setTimeout(() => refreshGallery(true), 4000);
   } catch (error) {
+    showProgress(false);
+    console.error("[Upload Gallery] Error en upload:", error);
     setStatus(`Error al subir: ${error.message}`, true);
   }
 });
