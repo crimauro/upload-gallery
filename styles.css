@@ -9,9 +9,7 @@
     --accent-2: #8b7dff;
 }
 
-* {
-    box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 body {
     margin: 0;
@@ -19,56 +17,42 @@ body {
     background: radial-gradient(circle at top, #121a3f 0%, var(--bg) 55%);
     color: var(--text);
     min-height: 100vh;
-    padding: 0 10px; /* Evita que el contenido toque los bordes físicos del celular */
+    padding: 0 10px;
 }
 
 .aurora {
     position: fixed;
     inset: 0;
-    background: radial-gradient(circle at 20% 30%, rgba(106, 255, 242, 0.16), transparent 32%), radial-gradient(circle at 80% 20%, rgba(139, 125, 255, 0.18), transparent 35%);
+    background:
+        radial-gradient(circle at 20% 30%, rgba(106,255,242,0.16), transparent 32%),
+        radial-gradient(circle at 80% 20%, rgba(139,125,255,0.18), transparent 35%);
     pointer-events: none;
 }
 
 .container {
     position: relative;
-    width: min(1100px, 95%); /* Aprovecha mejor el ancho en pantallas pequeñas */
-    margin: 1.5rem auto 3rem; /* Espaciado superior balanceado */
+    width: min(1100px, 95%);
+    margin: 1.5rem auto 3rem;
     display: grid;
     gap: 1.2rem;
 }
 
-.hero,
-.panel {
+.hero, .panel {
     border: 1px solid var(--line);
     border-radius: 16px;
     background: var(--panel);
     backdrop-filter: blur(8px);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.35);
     padding: 1.2rem;
 }
 
-.hero {
-    text-align: center;
-}
+.hero { text-align: center; }
 
-h1,
-h2 {
-    margin: 0 0 0.6rem;
-}
+h1, h2 { margin: 0 0 0.6rem; }
+h1 { font-size: 1.8rem; }
+h2 { font-size: 1.3rem; }
 
-h1 {
-    font-size: 1.8rem; /* Tamaño idóneo para móviles */
-}
-
-h2 {
-    font-size: 1.3rem;
-}
-
-p {
-    margin: 0;
-    color: var(--muted);
-    font-size: 0.95rem;
-}
+p { margin: 0; color: var(--muted); font-size: 0.95rem; }
 
 label {
     display: flex;
@@ -78,17 +62,16 @@ label {
     color: var(--muted);
 }
 
-input,
-button {
-    border: 1px solid rgba(255, 255, 255, 0.22);
+input, button {
+    border: 1px solid rgba(255,255,255,0.22);
     border-radius: 10px;
-    padding: 0.8rem 1rem; /* Botones más altos y cómodos para pantallas táctiles */
+    padding: 0.8rem 1rem;
     font-size: 0.95rem;
-    width: 100%; /* Por defecto toman todo el ancho en celulares */
+    width: 100%;
 }
 
 input {
-    background: rgba(5, 12, 32, 0.8);
+    background: rgba(5,12,32,0.8);
     color: var(--text);
 }
 
@@ -100,47 +83,29 @@ button {
     transition: transform 0.1s ease, opacity 0.2s ease;
 }
 
-    button:active {
-        transform: scale(0.98); /* Pequeño efecto visual al presionarlo con el dedo */
-    }
+button:active { transform: scale(0.98); }
 
-#refresh-btn {
-    background: rgba(255, 255, 255, 0.08);
-    color: var(--text);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-}
-
-/* Lógica responsiva para la fila de subida */
+/* ── Upload row ── */
 .upload-row {
     display: flex;
-    flex-direction: column; /* En fila vertical para celulares */
+    flex-direction: column;
     gap: 0.8rem;
 }
 
-.status {
-    margin-top: 0.7rem;
-    min-height: 1.2rem;
-    text-align: center;
-    font-size: 0.9rem;
-    font-weight: 500;
-}
-
-/* Barra de progreso de upload */
+/* ── Barra de progreso ── */
 .progress-wrap {
     margin-top: 0.9rem;
     display: flex;
     align-items: center;
     gap: 0.7rem;
 }
-
 .progress-bar-track {
     flex: 1;
     height: 8px;
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255,255,255,0.1);
     border-radius: 999px;
     overflow: hidden;
 }
-
 .progress-bar-fill {
     height: 100%;
     width: 0%;
@@ -148,7 +113,6 @@ button {
     background: linear-gradient(90deg, var(--accent), var(--accent-2));
     transition: width 0.2s ease;
 }
-
 .progress-label {
     font-size: 0.8rem;
     font-weight: 600;
@@ -157,65 +121,149 @@ button {
     text-align: right;
 }
 
-/* Galería Inteligente: Se adapta al ancho disponible */
-.gallery {
+/* ── Status ── */
+.status {
     margin-top: 0.7rem;
+    min-height: 1.2rem;
+    text-align: center;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+/* ── Cabecera de galería: título + controles alineados ── */
+.gallery-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin-bottom: 0.8rem;
+}
+
+.gallery-header h2 { margin: 0; }
+
+.gallery-controls {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+/* Botones de control de galería */
+.ctrl-btn {
+    background: rgba(255,255,255,0.07);
+    color: var(--muted);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 8px;
+    padding: 0.4rem 0.85rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+    width: auto;
+}
+.ctrl-btn:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+}
+.ctrl-btn--active {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: rgba(106,255,242,0.1);
+}
+
+/* ── Galería ── */
+.gallery {
     display: grid;
     gap: 0.5rem;
-    /* Móvil/tablet: 3 columnas fijas para ver más fotos por pantalla */
     grid-template-columns: repeat(3, 1fr);
 }
 
+/* ── Tarjeta ── */
 .card {
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    position: relative;
+    border: 1px solid rgba(255,255,255,0.15);
     border-radius: 12px;
     overflow: hidden;
-    background: rgba(3, 9, 24, 0.75);
+    background: rgba(3,9,24,0.75);
     display: flex;
     flex-direction: column;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
-
 .card:hover {
     transform: translateY(-3px) scale(1.02);
-    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55);
+    box-shadow: 0 12px 28px rgba(0,0,0,0.55);
+}
+.card.selected {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}
+.card.selected .media-container img,
+.card.selected .media-container video {
+    opacity: 0.75;
 }
 
-/* Contenedor multimedia cuadrado perfecto (estilo Instagram) */
+/* ── Checkbox de selección ── */
+.card-checkbox {
+    position: absolute;
+    top: 7px;
+    left: 7px;
+    z-index: 10;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.7);
+    background: rgba(0,0,0,0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #050a1e;
+    /* Oculto por defecto */
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.7);
+    transition: opacity 0.18s ease, transform 0.18s ease, background 0.15s ease;
+}
+/* Visible solo cuando tiene clase .visible */
+.card-checkbox.visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: scale(1);
+}
+.card-checkbox:hover { border-color: var(--accent); }
+.card-checkbox.checked {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #050a1e;
+}
+
+/* ── Media container ── */
 .media-container {
     position: relative;
     width: 100%;
     padding-top: 100%;
-    /* Skeleton animado mientras carga el thumbnail */
     background: linear-gradient(90deg, #090f26 25%, #111a3a 50%, #090f26 75%);
     background-size: 200% 100%;
     animation: skeleton-shimmer 1.4s ease infinite;
 }
-
 @keyframes skeleton-shimmer {
     0%   { background-position: 200% 0; }
     100% { background-position: -200% 0; }
 }
+.media-container img,
+.media-container video {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+}
+.media-container img.loaded { opacity: 1; animation: none; }
 
-    .media-container img,
-    .media-container video {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        /* Fade-in suave al cargar cada thumbnail */
-        opacity: 0;
-        transition: opacity 0.35s ease;
-    }
-
-    .media-container img.loaded {
-        opacity: 1;
-        animation: none;
-    }
-
-/* Ícono ▶ superpuesto en tarjetas de video */
+/* ── Ícono play en videos ── */
 .play-icon {
     position: absolute;
     inset: 0;
@@ -224,35 +272,31 @@ button {
     justify-content: center;
     font-size: 2rem;
     color: #fff;
-    background: rgba(0, 0, 0, 0.30);
+    background: rgba(0,0,0,0.30);
     opacity: 0;
     transition: opacity 0.2s ease;
     pointer-events: none;
 }
+.card:hover .play-icon { opacity: 1; }
 
-.card:hover .play-icon {
-    opacity: 1;
-}
-
+/* ── Footer de tarjeta ── */
 .card-footer {
     padding: 0.6rem;
     display: flex;
-    flex-direction: column; /* Elementos apilados en móvil */
+    flex-direction: column;
     gap: 0.5rem;
     align-items: center;
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(0,0,0,0.2);
 }
-
-    .card-footer small {
-        color: var(--muted);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        font-size: 0.8rem;
-        text-align: center;
-        width: 100%;
-    }
-
+.card-footer small {
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.8rem;
+    text-align: center;
+    width: 100%;
+}
 .download-link {
     color: #050a1e;
     background: var(--accent);
@@ -262,66 +306,9 @@ button {
     padding: 6px;
     border-radius: 6px;
     text-align: center;
-    width: 100%; /* Botón de descarga completo para que sea fácil dar clic */
+    width: 100%;
 }
 
-/* --- MEDIA QUERIES PARA DISPOSITIVOS MEDIANOS / GRANDES (Tablets y PCs) --- */
-@media (min-width: 600px) {
-    .container {
-        width: min(1100px, 92%);
-        margin: 2rem auto 4rem;
-    }
-
-    h1 {
-        font-size: 2.2rem;
-    }
-
-    h2 {
-        font-size: 1.5rem;
-    }
-
-    /* El formulario se vuelve horizontal en pantallas amplias */
-    .upload-row {
-        flex-direction: row;
-        align-items: center;
-    }
-
-        .upload-row input {
-            flex: 1;
-            width: auto;
-        }
-
-    button {
-        width: auto; /* Los botones ya no abarcan todo el ancho */
-    }
-
-    /* PC: auto-fill con tarjetas más grandes */
-    .gallery {
-        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-        gap: 1.2rem;
-    }
-
-    .card-footer {
-        flex-direction: row;
-        justify-content: space-between;
-    }
-
-        .card-footer small {
-            text-align: left;
-            width: auto;
-        }
-
-    .download-link {
-        width: auto;
-        background: transparent;
-        color: var(--accent);
-        padding: 0;
-    }
-
-        .download-link:hover {
-            text-decoration: underline;
-        }
-}
 /* ── Paginación ── */
 .pagination {
     display: flex;
@@ -331,31 +318,24 @@ button {
     margin-top: 1.2rem;
     flex-wrap: wrap;
 }
-
 .page-btn {
-    background: rgba(255, 255, 255, 0.07);
+    background: rgba(255,255,255,0.07);
     color: var(--text);
-    border: 1px solid rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(255,255,255,0.18);
     border-radius: 10px;
     padding: 0.55rem 1.1rem;
     font-size: 0.88rem;
     font-weight: 600;
     cursor: pointer;
-    transition: background 0.15s ease, opacity 0.15s ease;
     width: auto;
+    transition: background 0.15s, opacity 0.15s;
 }
-
 .page-btn:hover:not(:disabled) {
-    background: rgba(106, 255, 242, 0.12);
+    background: rgba(106,255,242,0.12);
     border-color: var(--accent);
     color: var(--accent);
 }
-
-.page-btn:disabled {
-    opacity: 0.35;
-    cursor: default;
-}
-
+.page-btn:disabled { opacity: 0.35; cursor: default; }
 .page-info {
     color: var(--muted);
     font-size: 0.88rem;
@@ -363,54 +343,8 @@ button {
     text-align: center;
 }
 
-/* ── Checkbox de selección en tarjetas ── */
-.card {
-    position: relative; /* necesario para posicionar el checkbox */
-}
-
-.card-checkbox {
-    position: absolute;
-    top: 7px;
-    left: 7px;
-    z-index: 10;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    border: 2px solid rgba(255, 255, 255, 0.7);
-    background: rgba(0, 0, 0, 0.45);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: #050a1e;
-    transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
-}
-
-.card-checkbox:hover {
-    border-color: var(--accent);
-    transform: scale(1.1);
-}
-
-.card-checkbox.checked {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: #050a1e;
-}
-
-.card.selected {
-    outline: 2px solid var(--accent);
-    outline-offset: -2px;
-}
-
-.card.selected .media-container img,
-.card.selected .media-container video {
-    opacity: 0.75;
-}
-
-/* ── Barra flotante de selección ── */
-.selection-bar {
+/* ── Barra flotante de descarga ── */
+.download-bar {
     position: fixed;
     bottom: 24px;
     left: 50%;
@@ -419,65 +353,76 @@ button {
     display: flex;
     align-items: center;
     gap: 0.8rem;
-    background: rgba(6, 8, 22, 0.92);
+    background: rgba(6,8,22,0.94);
     border: 1px solid var(--accent);
     border-radius: 14px;
-    padding: 0.7rem 1rem;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    padding: 0.65rem 1rem;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
     backdrop-filter: blur(12px);
-    flex-wrap: wrap;
-    max-width: min(94vw, 600px);
+    max-width: min(94vw, 480px);
 }
-
-.sel-count {
+.dl-count {
     color: var(--accent);
     font-weight: 600;
-    font-size: 0.88rem;
+    font-size: 0.85rem;
     white-space: nowrap;
+    flex: 1;
 }
-
-.sel-actions {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-    flex-wrap: wrap;
-}
-
-.sel-btn {
-    border-radius: 8px;
-    font-size: 0.82rem;
-    font-weight: 600;
-    cursor: pointer;
-    padding: 0.45rem 0.85rem;
-    border: 1px solid transparent;
-    transition: opacity 0.15s ease, transform 0.1s ease;
-    width: auto;
-}
-
-.sel-btn:active { transform: scale(0.97); }
-.sel-btn:disabled { opacity: 0.5; cursor: default; }
-
-.sel-btn--primary {
+.dl-btn-primary {
     background: linear-gradient(120deg, var(--accent), var(--accent-2));
     color: #050a1e;
+    border: none;
+    border-radius: 8px;
+    padding: 0.45rem 1rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    width: auto;
+    transition: opacity 0.15s, transform 0.1s;
 }
-
-.sel-btn--ghost {
+.dl-btn-primary:disabled { opacity: 0.5; cursor: default; }
+.dl-btn-close {
     background: transparent;
-    border-color: rgba(255, 255, 255, 0.25);
-    color: var(--text);
-}
-
-.sel-btn--ghost:hover:not(:disabled) {
-    border-color: var(--accent);
-    color: var(--accent);
-}
-
-.sel-btn--close {
-    background: transparent;
-    border-color: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255,255,255,0.15);
     color: var(--muted);
+    border-radius: 8px;
     padding: 0.45rem 0.65rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    width: auto;
+    transition: color 0.15s, border-color 0.15s;
 }
+.dl-btn-close:hover { color: #ff8b8b; border-color: #ff8b8b; }
 
-.sel-btn--close:hover { color: #ff8b8b; border-color: #ff8b8b; }
+/* ── Responsive ≥ 600px ── */
+@media (min-width: 600px) {
+    .container { width: min(1100px, 92%); margin: 2rem auto 4rem; }
+    h1 { font-size: 2.2rem; }
+    h2 { font-size: 1.5rem; }
+
+    .upload-row {
+        flex-direction: row;
+        align-items: center;
+    }
+    .upload-row input { flex: 1; width: auto; }
+    button { width: auto; }
+
+    .gallery {
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 1.2rem;
+    }
+
+    .card-footer {
+        flex-direction: row;
+        justify-content: space-between;
+    }
+    .card-footer small { text-align: left; width: auto; }
+    .download-link {
+        width: auto;
+        background: transparent;
+        color: var(--accent);
+        padding: 0;
+    }
+    .download-link:hover { text-decoration: underline; }
+}

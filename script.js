@@ -9,8 +9,10 @@ const uploadForm = document.getElementById("upload-form");
 const statusNode  = document.getElementById("status");
 const galleryNode = document.getElementById("gallery");
 
-let currentResources = [];
-let selectedIds = new Set(); // public_ids de recursos seleccionados para descarga
+let currentResources  = [];
+let recursosPaginados = [];
+let selectedIds       = new Set();
+let selectMode        = false;   // true = checkboxes visibles
 
 // ─────────────────────────────────────────────
 // URLs de Cloudinary
@@ -30,46 +32,136 @@ function buildDownloadUrl(cloudName, resource) {
   return `https://res.cloudinary.com/${encodeURIComponent(cloudName)}/${resource.resource_type}/upload/fl_attachment/${resource.public_id}${ext}`;
 }
 
-/**
- * URL de vista completa: alta calidad pero con f_auto para que el browser
- * siempre pueda renderizarla (convierte HEIC/HEIF/TIFF → WebP o JPEG).
- * q_auto:good equilibra calidad y peso para la vista en pantalla completa.
- */
 function buildViewUrl(cloudName, resource) {
   const cn  = encodeURIComponent(cloudName);
   const pid = resource.public_id;
-  if (resource.resource_type === "video") {
-    return resource.secure_url; // los videos los abre el browser de forma nativa
-  }
-  // w_2000 limita la resolución máxima a 2000px de ancho (suficiente para cualquier pantalla)
-  // sin tocar imágenes que ya sean más pequeñas (Cloudinary no las escala hacia arriba).
+  if (resource.resource_type === "video") return resource.secure_url;
   return `https://res.cloudinary.com/${cn}/image/upload/w_2000,c_limit,f_auto,q_auto:good/${pid}`;
 }
 
 // ─────────────────────────────────────────────
 // Paginación
-// Cambia ITEMS_POR_PAGINA para ajustar cuántos elementos muestra cada página.
+// Cambia ITEMS_POR_PAGINA para ajustar cuántas tarjetas muestra cada página.
 // ─────────────────────────────────────────────
 const ITEMS_POR_PAGINA = 12;
 let paginaActual = 1;
-let recursosPaginados = []; // copia ordenada de todos los recursos
+
+// ─────────────────────────────────────────────
+// Modo selección
+// ─────────────────────────────────────────────
+
+function toggleSelectMode() {
+  // Activa / desactiva modo selección sin seleccionar nada
+  selectMode = !selectMode;
+  if (!selectMode) {
+    // Al desactivar, limpiamos la selección
+    selectedIds.clear();
+    updateDownloadBar();
+  }
+  updateSelectButtons();
+  refreshCardCheckboxes();
+}
+
+function toggleSelectAll() {
+  if (selectedIds.size === recursosPaginados.length) {
+    // Ya estaban todos → deseleccionar y desactivar modo
+    selectedIds.clear();
+    selectMode = false;
+  } else {
+    // Seleccionar todos y activar modo
+    selectMode = true;
+    recursosPaginados.forEach(r => selectedIds.add(r.public_id));
+  }
+  updateSelectButtons();
+  refreshCardCheckboxes();
+  updateDownloadBar();
+}
+
+function clearSelection() {
+  selectedIds.clear();
+  selectMode = false;
+  updateSelectButtons();
+  refreshCardCheckboxes();
+  updateDownloadBar();
+}
+
+function updateSelectButtons() {
+  const btnSel    = document.getElementById("btn-select");
+  const btnSelAll = document.getElementById("btn-select-all");
+  if (!btnSel) return;
+
+  // "Seleccionar" se marca como activo cuando el modo está encendido
+  btnSel.classList.toggle("ctrl-btn--active", selectMode);
+  btnSel.textContent = selectMode ? "Cancelar selección" : "Seleccionar";
+
+  // "Seleccionar todo" se marca cuando todos están seleccionados
+  const allSelected = recursosPaginados.length > 0
+    && selectedIds.size === recursosPaginados.length;
+  btnSelAll.classList.toggle("ctrl-btn--active", allSelected);
+  btnSelAll.textContent = allSelected ? "Deseleccionar todo" : "Seleccionar todo";
+}
+
+/** Actualiza el estado visual de los checkboxes en las tarjetas existentes en el DOM,
+ *  sin re-renderizar todo el grid (más eficiente). */
+function refreshCardCheckboxes() {
+  document.querySelectorAll(".card").forEach(card => {
+    const pid = card.dataset.pid;
+    const cb  = card.querySelector(".card-checkbox");
+    if (!cb) return;
+
+    cb.classList.toggle("visible",  selectMode || selectedIds.has(pid));
+    cb.classList.toggle("checked",  selectedIds.has(pid));
+    cb.innerHTML = selectedIds.has(pid) ? "✓" : "";
+    card.classList.toggle("selected", selectedIds.has(pid));
+  });
+}
+
+function updateDownloadBar() {
+  const bar   = document.getElementById("download-bar");
+  const count = selectedIds.size;
+  bar.hidden  = count === 0;
+  if (count > 0) {
+    document.getElementById("dl-count").textContent =
+      `${count} archivo${count !== 1 ? "s" : ""} seleccionado${count !== 1 ? "s" : ""}`;
+  }
+}
+
+// ─────────────────────────────────────────────
+// Tarjeta de galería
+// ─────────────────────────────────────────────
 
 function buildCard(resource, cloudName) {
   const isVideo = resource.resource_type === "video";
-  const pid = resource.public_id;
+  const pid     = resource.public_id;
+  const checked = selectedIds.has(pid);
 
   const card = document.createElement("article");
-  card.className = "card";
-  if (selectedIds.has(pid)) card.classList.add("selected");
+  card.className = "card" + (checked ? " selected" : "");
   card.dataset.pid = pid;
 
-  // ── Checkbox de selección (esquina superior izquierda) ──
+  // Checkbox — oculto por defecto, visible solo en modo selección
   const checkbox = document.createElement("div");
-  checkbox.className = "card-checkbox" + (selectedIds.has(pid) ? " checked" : "");
-  checkbox.innerHTML = selectedIds.has(pid) ? "✓" : "";
+  checkbox.className = "card-checkbox"
+    + (checked                        ? " checked" : "")
+    + (selectMode || checked          ? " visible" : "");
+  checkbox.innerHTML = checked ? "✓" : "";
   checkbox.addEventListener("click", (e) => {
     e.stopPropagation();
-    toggleSelection(pid, card, checkbox);
+    if (selectedIds.has(pid)) {
+      selectedIds.delete(pid);
+      card.classList.remove("selected");
+      checkbox.classList.remove("checked");
+      checkbox.innerHTML = "";
+      // Si no queda nada seleccionado y no hay modo activo, ocultar checkbox
+      if (!selectMode) checkbox.classList.remove("visible");
+    } else {
+      selectedIds.add(pid);
+      card.classList.add("selected");
+      checkbox.classList.add("checked");
+      checkbox.innerHTML = "✓";
+    }
+    updateSelectButtons();
+    updateDownloadBar();
   });
 
   const mediaContainer = document.createElement("div");
@@ -89,9 +181,7 @@ function buildCard(resource, cloudName) {
     const playIcon = document.createElement("div");
     playIcon.className = "play-icon";
     playIcon.innerHTML = "▶";
-
-    mediaContainer.appendChild(poster);
-    mediaContainer.appendChild(playIcon);
+    mediaContainer.append(poster, playIcon);
   } else {
     const img = document.createElement("img");
     img.src     = buildThumbnailUrl(cloudName, resource);
@@ -125,102 +215,73 @@ function buildCard(resource, cloudName) {
 }
 
 // ─────────────────────────────────────────────
-// Selección múltiple y descarga
+// Descarga en ZIP (múltiple) o directa (individual)
 // ─────────────────────────────────────────────
-
-function toggleSelection(pid, card, checkbox) {
-  if (selectedIds.has(pid)) {
-    selectedIds.delete(pid);
-    card.classList.remove("selected");
-    checkbox.classList.remove("checked");
-    checkbox.innerHTML = "";
-  } else {
-    selectedIds.add(pid);
-    card.classList.add("selected");
-    checkbox.classList.add("checked");
-    checkbox.innerHTML = "✓";
-  }
-  updateSelectionBar();
-}
-
-function updateSelectionBar() {
-  const bar = document.getElementById("selection-bar");
-  const count = selectedIds.size;
-  if (count === 0) {
-    bar.hidden = true;
-    return;
-  }
-  bar.hidden = false;
-  document.getElementById("sel-count").textContent =
-    `${count} archivo${count !== 1 ? "s" : ""} seleccionado${count !== 1 ? "s" : ""}`;
-
-  // Texto del botón "Seleccionar todo"
-  const btnAll = document.getElementById("sel-all-btn");
-  btnAll.textContent = selectedIds.size === recursosPaginados.length
-    ? "Deseleccionar todo"
-    : "Seleccionar todo";
-}
-
-function selectAll() {
-  if (selectedIds.size === recursosPaginados.length) {
-    // Deseleccionar todo
-    selectedIds.clear();
-  } else {
-    // Seleccionar todos los recursos (todas las páginas)
-    recursosPaginados.forEach(r => selectedIds.add(r.public_id));
-  }
-  // Re-renderizar la página actual para reflejar el estado visual
-  renderPageItems(CONFIG_FIJA.cloudName);
-  updateSelectionBar();
-}
 
 async function downloadSelected() {
   const { cloudName } = CONFIG_FIJA;
   const resources = recursosPaginados.filter(r => selectedIds.has(r.public_id));
   if (!resources.length) return;
 
-  const btn = document.getElementById("sel-download-btn");
+  const btn = document.getElementById("dl-btn");
   btn.disabled = true;
-  btn.textContent = "Descargando…";
 
-  // Descarga secuencial con pequeña pausa entre archivos para no saturar el browser
-  for (let i = 0; i < resources.length; i++) {
-    const resource = resources[i];
-    btn.textContent = `Descargando ${i + 1} / ${resources.length}…`;
+  if (resources.length === 1) {
+    // Un solo archivo: descarga directa
+    btn.textContent = "Descargando…";
+    const resource = resources[0];
+    const link = document.createElement("a");
+    link.href     = buildDownloadUrl(cloudName, resource);
+    link.target   = "_blank";
+    link.download = (resource.public_id.split("/").pop() || "archivo")
+                    + (resource.format ? `.${resource.format}` : "");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } else {
+    // Múltiples archivos: empaquetar en ZIP
+    const zip = new JSZip();
+    const folder = zip.folder("galeria-gaby");
 
-    const url = buildDownloadUrl(cloudName, resource);
-    const ext = resource.format ? `.${resource.format}` : "";
-    const filename = (resource.public_id.split("/").pop() || resource.public_id) + ext;
-
-    try {
-      const response = await fetch(url);
-      const blob = await response.blob();
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-    } catch {
-      console.warn(`[Upload Gallery] No se pudo descargar: ${filename}`);
+    for (let i = 0; i < resources.length; i++) {
+      const resource = resources[i];
+      btn.textContent = `Preparando ${i + 1} / ${resources.length}…`;
+      const url = buildDownloadUrl(cloudName, resource);
+      const ext = resource.format ? `.${resource.format}` : "";
+      const filename = (resource.public_id.split("/").pop() || `archivo_${i + 1}`) + ext;
+      try {
+        const response = await fetch(url);
+        const blob     = await response.blob();
+        folder.file(filename, blob);
+      } catch {
+        console.warn(`[Upload Gallery] No se pudo incluir en ZIP: ${filename}`);
+      }
     }
 
-    // Pausa de 600ms entre descargas para que el browser las procese
-    if (i < resources.length - 1) await new Promise(r => setTimeout(r, 600));
+    btn.textContent = "Generando ZIP…";
+    const zipBlob = await zip.generateAsync({ type: "blob" });
+    const link = document.createElement("a");
+    link.href     = URL.createObjectURL(zipBlob);
+    link.download = "galeria-gaby.zip";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(link.href), 10000);
   }
 
   btn.disabled = false;
-  btn.textContent = "⬇ Descargar seleccionados";
+  btn.textContent = "⬇ Descargar";
 }
 
+// ─────────────────────────────────────────────
+// Paginación y render
+// ─────────────────────────────────────────────
+
 function renderPagination(totalItems, cloudName) {
-  // Eliminar paginador anterior si existe
   const old = document.getElementById("pagination");
   if (old) old.remove();
-
   const totalPaginas = Math.ceil(totalItems / ITEMS_POR_PAGINA);
-  if (totalPaginas <= 1) return; // sin paginador si todo cabe en una página
+  if (totalPaginas <= 1) return;
 
   const nav = document.createElement("nav");
   nav.id = "pagination";
@@ -229,42 +290,34 @@ function renderPagination(totalItems, cloudName) {
 
   const btnPrev = document.createElement("button");
   btnPrev.textContent = "← Anterior";
-  btnPrev.className = "page-btn";
-  btnPrev.disabled = paginaActual === 1;
+  btnPrev.className   = "page-btn";
+  btnPrev.disabled    = paginaActual === 1;
   btnPrev.addEventListener("click", () => {
     if (paginaActual > 1) { paginaActual--; renderPageItems(cloudName); }
   });
 
   const info = document.createElement("span");
-  info.className = "page-info";
+  info.className   = "page-info";
   info.textContent = `Página ${paginaActual} de ${totalPaginas}`;
 
   const btnNext = document.createElement("button");
   btnNext.textContent = "Siguiente →";
-  btnNext.className = "page-btn";
-  btnNext.disabled = paginaActual === totalPaginas;
+  btnNext.className   = "page-btn";
+  btnNext.disabled    = paginaActual === totalPaginas;
   btnNext.addEventListener("click", () => {
     if (paginaActual < totalPaginas) { paginaActual++; renderPageItems(cloudName); }
   });
 
   nav.append(btnPrev, info, btnNext);
-
-  // Insertar el paginador debajo del div#gallery
   galleryNode.insertAdjacentElement("afterend", nav);
 }
 
 function renderPageItems(cloudName) {
   galleryNode.innerHTML = "";
-
-  const inicio = (paginaActual - 1) * ITEMS_POR_PAGINA;
-  const pagina = recursosPaginados.slice(inicio, inicio + ITEMS_POR_PAGINA);
-
+  const inicio  = (paginaActual - 1) * ITEMS_POR_PAGINA;
+  const pagina  = recursosPaginados.slice(inicio, inicio + ITEMS_POR_PAGINA);
   pagina.forEach(resource => galleryNode.appendChild(buildCard(resource, cloudName)));
-
-  // Re-renderizar el paginador con la página actualizada
   renderPagination(recursosPaginados.length, cloudName);
-
-  // Scroll suave al inicio de la galería al cambiar de página
   galleryNode.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
@@ -273,25 +326,47 @@ function renderGallery(resources, cloudName) {
   const old = document.getElementById("pagination");
   if (old) old.remove();
 
+  const controls = document.getElementById("gallery-controls");
+
   if (!resources || !resources.length) {
     showEmptyGallery();
+    if (controls) controls.hidden = true;
     return;
   }
 
-  // Ordenar y guardar todos los recursos para la paginación
   recursosPaginados = [...resources].sort(
     (a, b) => (b.created_at || "").localeCompare(a.created_at || "")
   );
-
-  // Cuando se actualizan los recursos (ej: nueva subida) volvemos a la página 1
   paginaActual = 1;
+  if (controls) controls.hidden = false;
   renderPageItems(cloudName);
 }
 
-function clearSelection() {
-  selectedIds.clear();
-  renderPageItems(CONFIG_FIJA.cloudName);
-  updateSelectionBar();
+// ─────────────────────────────────────────────
+// Helpers de UI
+// ─────────────────────────────────────────────
+
+function showEmptyGallery() {
+  galleryNode.innerHTML = `
+    <div style="grid-column:1/-1;text-align:center;padding:40px 20px;color:var(--muted);">
+      <p style="font-size:2rem;margin:0 0 12px;">📷</p>
+      <p style="margin:0;color:var(--text);font-size:0.95rem;">No hay elementos a mostrar en la galería.</p>
+    </div>`;
+}
+
+function showErrorPanel(httpStatus) {
+  const errorMap = {
+    401: "Tag no encontrado o sin recursos públicos (401) — asignar tag a recursos existentes en Cloudinary Media Library.",
+    403: "Petición bloqueada (403) — limpiar 'Allowed strict referral domains' en Cloudinary Settings > Security.",
+    404: "Endpoint no existe (404) — habilitar 'Resource list' en Cloudinary Settings > Security.",
+  };
+  console.error(`[Upload Gallery] ${errorMap[httpStatus] || `HTTP ${httpStatus} inesperado.`}`);
+  showEmptyGallery();
+}
+
+function setStatus(message, isError = false) {
+  statusNode.textContent = message;
+  statusNode.style.color = isError ? "#ff8b8b" : "#9fffc0";
 }
 
 // ─────────────────────────────────────────────
@@ -300,19 +375,19 @@ function clearSelection() {
 
 async function fetchByTag(cloudName, tag, resourceType) {
   try {
-    // SIN ?t=Date.now() — ese parámetro rompe el caché de CDN y puede
-    // triggerar verificaciones de allowlist en cada request único.
     const url = `https://res.cloudinary.com/${encodeURIComponent(cloudName)}/${resourceType}/list/${encodeURIComponent(tag)}.json`;
-    const res  = await fetch(url, { cache: "no-store" });
+    const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) {
       console.warn(`[Cloudinary] fetchByTag ${resourceType}/${tag}: HTTP ${res.status}`);
       return { resources: [], error: res.status };
     }
     const data = await res.json();
-    const items = Array.isArray(data.resources) ? data.resources : [];
-    return { resources: items.map(r => ({ ...r, resource_type: resourceType })), error: null };
+    return {
+      resources: (Array.isArray(data.resources) ? data.resources : [])
+                   .map(r => ({ ...r, resource_type: resourceType })),
+      error: null
+    };
   } catch (e) {
-    console.warn(`[Cloudinary] fetchByTag error:`, e);
     return { resources: [], error: e.message };
   }
 }
@@ -321,16 +396,15 @@ async function fetchByFolder(cloudName, folder, resourceType) {
   try {
     const encodedFolder = folder.split("/").map(encodeURIComponent).join("/");
     const url = `https://res.cloudinary.com/${encodeURIComponent(cloudName)}/${resourceType}/list/${encodedFolder}.json`;
-    const res  = await fetch(url, { cache: "no-store" });
-    if (!res.ok) {
-      console.warn(`[Cloudinary] fetchByFolder ${resourceType}/${folder}: HTTP ${res.status}`);
-      return { resources: [], error: res.status };
-    }
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) return { resources: [], error: res.status };
     const data = await res.json();
-    const items = Array.isArray(data.resources) ? data.resources : [];
-    return { resources: items.map(r => ({ ...r, resource_type: resourceType })), error: null };
+    return {
+      resources: (Array.isArray(data.resources) ? data.resources : [])
+                   .map(r => ({ ...r, resource_type: resourceType })),
+      error: null
+    };
   } catch (e) {
-    console.warn(`[Cloudinary] fetchByFolder error:`, e);
     return { resources: [], error: e.message };
   }
 }
@@ -344,36 +418,10 @@ function dedup(resources) {
   });
 }
 
-// Registra el error técnico en consola (solo visible para desarrolladores)
-// y muestra el panel de galería vacía sin mensaje de error visible al usuario.
-function showErrorPanel(httpStatus) {
-  const errorMap = {
-    401: "Tag no encontrado o sin recursos públicos (401) — asignar tag a los recursos existentes en Cloudinary Media Library.",
-    403: "Petición bloqueada por allowlist (403) — limpiar 'Allowed strict referral domains' en Cloudinary Settings > Security.",
-    404: "Endpoint de lista no existe (404) — habilitar 'Resource list' en Cloudinary Settings > Security > Restricted image types.",
-  };
-  console.error(
-    `[Upload Gallery] Error al cargar la galería: ${errorMap[httpStatus] || `HTTP ${httpStatus} inesperado.`}`
-  );
-  // No mostramos error al usuario — simplemente galería vacía
-  showEmptyGallery();
-}
-
-function showEmptyGallery() {
-  galleryNode.innerHTML = `
-    <div style="grid-column:1/-1; text-align:center; padding:40px 20px; color:var(--muted);">
-      <p style="font-size:2rem; margin:0 0 12px;">📷</p>
-      <p style="margin:0; color:var(--text); font-size:0.95rem;">
-        No hay elementos a mostrar en la galería.
-      </p>
-    </div>`;
-}
-
 async function refreshGallery(silent = false) {
   const { cloudName, galleryTag, folder } = CONFIG_FIJA;
   if (!silent) setStatus("Cargando galería…");
 
-  // Capa 1: por TAG
   const [imgTag, vidTag] = await Promise.all([
     fetchByTag(cloudName, galleryTag, "image"),
     fetchByTag(cloudName, galleryTag, "video"),
@@ -381,14 +429,12 @@ async function refreshGallery(silent = false) {
 
   let fetched = dedup([...imgTag.resources, ...vidTag.resources]);
 
-  // Elige el error más informativo: 401 > 403 > 404 > otros
   const errorPriority = (e) => ({ 401: 4, 403: 3, 404: 2 }[e] || 1);
   const pickBestError = (...codes) =>
     codes.filter(Boolean).sort((a, b) => errorPriority(b) - errorPriority(a))[0] || null;
 
   let lastError = pickBestError(imgTag.error, vidTag.error);
 
-  // Capa 2: por CARPETA (solo si la capa 1 no trajo nada)
   if (fetched.length === 0 && folder) {
     const [imgFolder, vidFolder] = await Promise.all([
       fetchByFolder(cloudName, folder, "image"),
@@ -403,32 +449,19 @@ async function refreshGallery(silent = false) {
     renderGallery(currentResources, cloudName);
     if (!silent) setStatus(`Galería al día · ${fetched.length} archivo${fetched.length !== 1 ? "s" : ""}`);
   } else if (currentResources.length > 0) {
-    // Hay recursos en memoria (recién subidos en esta sesión): los conservamos
     renderGallery(currentResources, cloudName);
     if (!silent) setStatus("Galería al día.");
   } else {
-    // Sin recursos: log técnico en consola, galería vacía sin mensaje de error visible
     showErrorPanel(lastError);
-    if (!silent) setStatus(""); // sin mensaje de error visible al usuario
+    if (!silent) setStatus("");
   }
 }
 
 // ─────────────────────────────────────────────
-// Helpers
+// Upload con progreso
 // ─────────────────────────────────────────────
 
-function setStatus(message, isError = false) {
-  statusNode.textContent = message;
-  statusNode.style.color = isError ? "#ff8b8b" : "#9fffc0";
-}
-
-// ─────────────────────────────────────────────
-// Upload
-// ─────────────────────────────────────────────
-
-// Límite de Cloudinary según plan:
-// Free: 100 MB por archivo | Paid: hasta 5 GB
-const MAX_FILE_MB  = 100;
+const MAX_FILE_MB    = 100;
 const MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024;
 
 const progressWrap  = document.getElementById("progress-wrap");
@@ -436,54 +469,37 @@ const progressBar   = document.getElementById("progress-bar");
 const progressLabel = document.getElementById("progress-label");
 
 function setProgress(percent) {
-  progressBar.style.width  = `${percent}%`;
+  progressBar.style.width   = `${percent}%`;
   progressLabel.textContent = `${Math.round(percent)}%`;
 }
-
 function showProgress(visible) {
   progressWrap.hidden = !visible;
   if (!visible) setProgress(0);
 }
 
-/**
- * Sube un archivo a Cloudinary usando XMLHttpRequest para poder
- * reportar el progreso real de transferencia byte a byte.
- * Devuelve una Promise con el recurso creado o lanza un Error.
- */
 function uploadWithProgress(file, formData, cloudName, onProgress) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", `https://api.cloudinary.com/v1_1/${encodeURIComponent(cloudName)}/auto/upload`);
-
     xhr.upload.addEventListener("progress", (e) => {
       if (e.lengthComputable) onProgress(e.loaded / e.total);
     });
-
     xhr.addEventListener("load", () => {
       if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          resolve(JSON.parse(xhr.responseText));
-        } catch {
-          reject(new Error("Respuesta inválida de Cloudinary"));
-        }
+        try { resolve(JSON.parse(xhr.responseText)); }
+        catch { reject(new Error("Respuesta inválida de Cloudinary")); }
       } else {
         let msg = `Error ${xhr.status}`;
-        if (xhr.status === 413) {
-          msg = `El archivo supera el límite de ${MAX_FILE_MB} MB permitido por Cloudinary.`;
-        } else {
-          try {
-            const payload = JSON.parse(xhr.responseText);
-            msg = payload.error?.message || msg;
-          } catch { /* sin JSON */ }
+        if (xhr.status === 413) msg = `El archivo supera el límite de ${MAX_FILE_MB} MB permitido.`;
+        else {
+          try { msg = JSON.parse(xhr.responseText).error?.message || msg; } catch {}
         }
         reject(new Error(msg));
       }
     });
-
-    xhr.addEventListener("error",  () => reject(new Error("Error de red al subir el archivo.")));
-    xhr.addEventListener("abort",  () => reject(new Error("Subida cancelada.")));
-    xhr.addEventListener("timeout",() => reject(new Error("Tiempo de espera agotado.")));
-
+    xhr.addEventListener("error",   () => reject(new Error("Error de red al subir el archivo.")));
+    xhr.addEventListener("abort",   () => reject(new Error("Subida cancelada.")));
+    xhr.addEventListener("timeout", () => reject(new Error("Tiempo de espera agotado.")));
     xhr.send(formData);
   });
 }
@@ -493,28 +509,22 @@ uploadForm.addEventListener("submit", async (event) => {
   const { cloudName, uploadPreset, galleryTag, folder } = CONFIG_FIJA;
   const files = document.getElementById("media-files").files;
 
-  if (!files.length) {
-    setStatus("Selecciona al menos un archivo.", true);
-    return;
-  }
+  if (!files.length) { setStatus("Selecciona al menos un archivo.", true); return; }
 
-  // Validar tamaño antes de intentar subir
   const oversized = [...files].filter(f => f.size > MAX_FILE_BYTES);
   if (oversized.length) {
-    const names = oversized.map(f => `• ${f.name} (${(f.size / 1024 / 1024).toFixed(0)} MB)`).join("\n");
     setStatus(
-      `${oversized.length === 1 ? "Este archivo supera" : "Estos archivos superan"} el límite de ${MAX_FILE_MB} MB:\n${names}`,
+      `${oversized.length === 1 ? "Este archivo supera" : "Estos archivos superan"} el límite de ${MAX_FILE_MB} MB: ` +
+      oversized.map(f => f.name).join(", "),
       true
     );
     return;
   }
 
-  const total    = files.length;
-  let   uploaded = 0;
-
+  const total = files.length;
+  let uploaded = 0;
   showProgress(true);
   setProgress(0);
-  setStatus(`Subiendo archivo 1 de ${total}…`);
 
   try {
     for (const file of files) {
@@ -524,19 +534,11 @@ uploadForm.addEventListener("submit", async (event) => {
       formData.append("tags",          galleryTag);
       if (folder) formData.append("folder", folder);
 
-      // El progreso total = progreso de archivos ya subidos + progreso del archivo actual
-      const uploadedResource = await uploadWithProgress(
-        file,
-        formData,
-        cloudName,
-        (fileProgress) => {
-          // Progreso global: fracción de archivos completos + fracción actual
-          const globalPercent = ((uploaded + fileProgress) / total) * 100;
-          setProgress(globalPercent);
-          const mb = (file.size / 1024 / 1024).toFixed(0);
-          setStatus(`Subiendo ${uploaded + 1} de ${total} · ${file.name.substring(0, 20)}${file.name.length > 20 ? "…" : ""} (${mb} MB)`);
-        }
-      );
+      const uploadedResource = await uploadWithProgress(file, formData, cloudName, (p) => {
+        setProgress(((uploaded + p) / total) * 100);
+        const mb = (file.size / 1024 / 1024).toFixed(0);
+        setStatus(`Subiendo ${uploaded + 1} de ${total} · ${file.name.substring(0, 20)}${file.name.length > 20 ? "…" : ""} (${mb} MB)`);
+      });
 
       uploaded++;
       setProgress((uploaded / total) * 100);
@@ -547,7 +549,6 @@ uploadForm.addEventListener("submit", async (event) => {
     showProgress(false);
     uploadForm.reset();
     setStatus(`¡${total === 1 ? "1 archivo subido" : `${total} archivos subidos`} con éxito! ✓`);
-
     setTimeout(() => refreshGallery(true), 4000);
   } catch (error) {
     showProgress(false);
