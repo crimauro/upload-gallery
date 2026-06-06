@@ -38,6 +38,16 @@
       </section>
     </main>
 
+    <!-- Barra flotante de selección múltiple -->
+    <div id="selection-bar" class="selection-bar" hidden>
+      <span id="sel-count" class="sel-count"></span>
+      <div class="sel-actions">
+        <button id="sel-all-btn" class="sel-btn sel-btn--ghost" onclick="selectAll()">Seleccionar todo</button>
+        <button id="sel-download-btn" class="sel-btn sel-btn--primary" onclick="downloadSelected()">⬇ Descargar seleccionados</button>
+        <button class="sel-btn sel-btn--close" onclick="clearSelection()" title="Cancelar selección">✕</button>
+      </div>
+    </div>
+
     <script src="./script.js"></script>
   </body>
 </html>

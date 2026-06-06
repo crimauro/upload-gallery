@@ -161,9 +161,9 @@ button {
 .gallery {
     margin-top: 0.7rem;
     display: grid;
-    gap: 0.8rem;
-    /* En celulares pequeños fuerza 2 columnas para que quepan más fotos sin scroll infinito */
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.5rem;
+    /* Móvil/tablet: 3 columnas fijas para ver más fotos por pantalla */
+    grid-template-columns: repeat(3, 1fr);
 }
 
 .card {
@@ -295,7 +295,7 @@ button {
         width: auto; /* Los botones ya no abarcan todo el ancho */
     }
 
-    /* Las tarjetas aumentan de tamaño en pantallas de PC */
+    /* PC: auto-fill con tarjetas más grandes */
     .gallery {
         grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
         gap: 1.2rem;
@@ -322,3 +322,162 @@ button {
             text-decoration: underline;
         }
 }
+/* ── Paginación ── */
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1.2rem;
+    flex-wrap: wrap;
+}
+
+.page-btn {
+    background: rgba(255, 255, 255, 0.07);
+    color: var(--text);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 10px;
+    padding: 0.55rem 1.1rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, opacity 0.15s ease;
+    width: auto;
+}
+
+.page-btn:hover:not(:disabled) {
+    background: rgba(106, 255, 242, 0.12);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.page-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.page-info {
+    color: var(--muted);
+    font-size: 0.88rem;
+    min-width: 100px;
+    text-align: center;
+}
+
+/* ── Checkbox de selección en tarjetas ── */
+.card {
+    position: relative; /* necesario para posicionar el checkbox */
+}
+
+.card-checkbox {
+    position: absolute;
+    top: 7px;
+    left: 7px;
+    z-index: 10;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.7);
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #050a1e;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.card-checkbox:hover {
+    border-color: var(--accent);
+    transform: scale(1.1);
+}
+
+.card-checkbox.checked {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #050a1e;
+}
+
+.card.selected {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}
+
+.card.selected .media-container img,
+.card.selected .media-container video {
+    opacity: 0.75;
+}
+
+/* ── Barra flotante de selección ── */
+.selection-bar {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    background: rgba(6, 8, 22, 0.92);
+    border: 1px solid var(--accent);
+    border-radius: 14px;
+    padding: 0.7rem 1rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(12px);
+    flex-wrap: wrap;
+    max-width: min(94vw, 600px);
+}
+
+.sel-count {
+    color: var(--accent);
+    font-weight: 600;
+    font-size: 0.88rem;
+    white-space: nowrap;
+}
+
+.sel-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.sel-btn {
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0.45rem 0.85rem;
+    border: 1px solid transparent;
+    transition: opacity 0.15s ease, transform 0.1s ease;
+    width: auto;
+}
+
+.sel-btn:active { transform: scale(0.97); }
+.sel-btn:disabled { opacity: 0.5; cursor: default; }
+
+.sel-btn--primary {
+    background: linear-gradient(120deg, var(--accent), var(--accent-2));
+    color: #050a1e;
+}
+
+.sel-btn--ghost {
+    background: transparent;
+    border-color: rgba(255, 255, 255, 0.25);
+    color: var(--text);
+}
+
+.sel-btn--ghost:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.sel-btn--close {
+    background: transparent;
+    border-color: rgba(255, 255, 255, 0.15);
+    color: var(--muted);
+    padding: 0.45rem 0.65rem;
+}
+
+.sel-btn--close:hover { color: #ff8b8b; border-color: #ff8b8b; }

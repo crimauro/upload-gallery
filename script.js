@@ -10,6 +10,7 @@ const statusNode  = document.getElementById("status");
 const galleryNode = document.getElementById("gallery");
 
 let currentResources = [];
+let selectedIds = new Set(); // public_ids de recursos seleccionados para descarga
 
 // ─────────────────────────────────────────────
 // URLs de Cloudinary
@@ -29,77 +30,268 @@ function buildDownloadUrl(cloudName, resource) {
   return `https://res.cloudinary.com/${encodeURIComponent(cloudName)}/${resource.resource_type}/upload/fl_attachment/${resource.public_id}${ext}`;
 }
 
+/**
+ * URL de vista completa: alta calidad pero con f_auto para que el browser
+ * siempre pueda renderizarla (convierte HEIC/HEIF/TIFF → WebP o JPEG).
+ * q_auto:good equilibra calidad y peso para la vista en pantalla completa.
+ */
+function buildViewUrl(cloudName, resource) {
+  const cn  = encodeURIComponent(cloudName);
+  const pid = resource.public_id;
+  if (resource.resource_type === "video") {
+    return resource.secure_url; // los videos los abre el browser de forma nativa
+  }
+  // w_2000 limita la resolución máxima a 2000px de ancho (suficiente para cualquier pantalla)
+  // sin tocar imágenes que ya sean más pequeñas (Cloudinary no las escala hacia arriba).
+  return `https://res.cloudinary.com/${cn}/image/upload/w_2000,c_limit,f_auto,q_auto:good/${pid}`;
+}
+
 // ─────────────────────────────────────────────
-// Render de galería
+// Paginación
+// Cambia ITEMS_POR_PAGINA para ajustar cuántos elementos muestra cada página.
 // ─────────────────────────────────────────────
+const ITEMS_POR_PAGINA = 12;
+let paginaActual = 1;
+let recursosPaginados = []; // copia ordenada de todos los recursos
+
+function buildCard(resource, cloudName) {
+  const isVideo = resource.resource_type === "video";
+  const pid = resource.public_id;
+
+  const card = document.createElement("article");
+  card.className = "card";
+  if (selectedIds.has(pid)) card.classList.add("selected");
+  card.dataset.pid = pid;
+
+  // ── Checkbox de selección (esquina superior izquierda) ──
+  const checkbox = document.createElement("div");
+  checkbox.className = "card-checkbox" + (selectedIds.has(pid) ? " checked" : "");
+  checkbox.innerHTML = selectedIds.has(pid) ? "✓" : "";
+  checkbox.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleSelection(pid, card, checkbox);
+  });
+
+  const mediaContainer = document.createElement("div");
+  mediaContainer.className = "media-container";
+
+  if (isVideo) {
+    const poster = document.createElement("img");
+    poster.src     = buildThumbnailUrl(cloudName, resource);
+    poster.alt     = pid;
+    poster.loading = "lazy";
+    poster.style.cursor = "pointer";
+    poster.title   = "Ver video";
+    poster.addEventListener("load",  () => poster.classList.add("loaded"));
+    poster.addEventListener("error", () => { poster.style.opacity = "1"; });
+    poster.addEventListener("click", () => window.open(resource.secure_url, "_blank"));
+
+    const playIcon = document.createElement("div");
+    playIcon.className = "play-icon";
+    playIcon.innerHTML = "▶";
+
+    mediaContainer.appendChild(poster);
+    mediaContainer.appendChild(playIcon);
+  } else {
+    const img = document.createElement("img");
+    img.src     = buildThumbnailUrl(cloudName, resource);
+    img.alt     = pid;
+    img.loading = "lazy";
+    img.style.cursor = "pointer";
+    img.title   = "Ver imagen completa";
+    img.addEventListener("load",  () => img.classList.add("loaded"));
+    img.addEventListener("error", () => { img.style.opacity = "1"; });
+    img.addEventListener("click", () => window.open(buildViewUrl(cloudName, resource), "_blank"));
+    mediaContainer.appendChild(img);
+  }
+
+  const footer = document.createElement("div");
+  footer.className = "card-footer";
+
+  const name = document.createElement("small");
+  const shortName = pid.split("/").pop() || pid;
+  name.textContent = shortName.length > 15 ? shortName.substring(0, 12) + "…" : shortName;
+
+  const download = document.createElement("a");
+  download.className   = "download-link";
+  download.href        = buildDownloadUrl(cloudName, resource);
+  download.textContent = "Descargar";
+  download.target      = "_blank";
+  download.rel         = "noopener noreferrer";
+
+  footer.append(name, download);
+  card.append(checkbox, mediaContainer, footer);
+  return card;
+}
+
+// ─────────────────────────────────────────────
+// Selección múltiple y descarga
+// ─────────────────────────────────────────────
+
+function toggleSelection(pid, card, checkbox) {
+  if (selectedIds.has(pid)) {
+    selectedIds.delete(pid);
+    card.classList.remove("selected");
+    checkbox.classList.remove("checked");
+    checkbox.innerHTML = "";
+  } else {
+    selectedIds.add(pid);
+    card.classList.add("selected");
+    checkbox.classList.add("checked");
+    checkbox.innerHTML = "✓";
+  }
+  updateSelectionBar();
+}
+
+function updateSelectionBar() {
+  const bar = document.getElementById("selection-bar");
+  const count = selectedIds.size;
+  if (count === 0) {
+    bar.hidden = true;
+    return;
+  }
+  bar.hidden = false;
+  document.getElementById("sel-count").textContent =
+    `${count} archivo${count !== 1 ? "s" : ""} seleccionado${count !== 1 ? "s" : ""}`;
+
+  // Texto del botón "Seleccionar todo"
+  const btnAll = document.getElementById("sel-all-btn");
+  btnAll.textContent = selectedIds.size === recursosPaginados.length
+    ? "Deseleccionar todo"
+    : "Seleccionar todo";
+}
+
+function selectAll() {
+  if (selectedIds.size === recursosPaginados.length) {
+    // Deseleccionar todo
+    selectedIds.clear();
+  } else {
+    // Seleccionar todos los recursos (todas las páginas)
+    recursosPaginados.forEach(r => selectedIds.add(r.public_id));
+  }
+  // Re-renderizar la página actual para reflejar el estado visual
+  renderPageItems(CONFIG_FIJA.cloudName);
+  updateSelectionBar();
+}
+
+async function downloadSelected() {
+  const { cloudName } = CONFIG_FIJA;
+  const resources = recursosPaginados.filter(r => selectedIds.has(r.public_id));
+  if (!resources.length) return;
+
+  const btn = document.getElementById("sel-download-btn");
+  btn.disabled = true;
+  btn.textContent = "Descargando…";
+
+  // Descarga secuencial con pequeña pausa entre archivos para no saturar el browser
+  for (let i = 0; i < resources.length; i++) {
+    const resource = resources[i];
+    btn.textContent = `Descargando ${i + 1} / ${resources.length}…`;
+
+    const url = buildDownloadUrl(cloudName, resource);
+    const ext = resource.format ? `.${resource.format}` : "";
+    const filename = (resource.public_id.split("/").pop() || resource.public_id) + ext;
+
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    } catch {
+      console.warn(`[Upload Gallery] No se pudo descargar: ${filename}`);
+    }
+
+    // Pausa de 600ms entre descargas para que el browser las procese
+    if (i < resources.length - 1) await new Promise(r => setTimeout(r, 600));
+  }
+
+  btn.disabled = false;
+  btn.textContent = "⬇ Descargar seleccionados";
+}
+
+function renderPagination(totalItems, cloudName) {
+  // Eliminar paginador anterior si existe
+  const old = document.getElementById("pagination");
+  if (old) old.remove();
+
+  const totalPaginas = Math.ceil(totalItems / ITEMS_POR_PAGINA);
+  if (totalPaginas <= 1) return; // sin paginador si todo cabe en una página
+
+  const nav = document.createElement("nav");
+  nav.id = "pagination";
+  nav.className = "pagination";
+  nav.setAttribute("aria-label", "Paginación de galería");
+
+  const btnPrev = document.createElement("button");
+  btnPrev.textContent = "← Anterior";
+  btnPrev.className = "page-btn";
+  btnPrev.disabled = paginaActual === 1;
+  btnPrev.addEventListener("click", () => {
+    if (paginaActual > 1) { paginaActual--; renderPageItems(cloudName); }
+  });
+
+  const info = document.createElement("span");
+  info.className = "page-info";
+  info.textContent = `Página ${paginaActual} de ${totalPaginas}`;
+
+  const btnNext = document.createElement("button");
+  btnNext.textContent = "Siguiente →";
+  btnNext.className = "page-btn";
+  btnNext.disabled = paginaActual === totalPaginas;
+  btnNext.addEventListener("click", () => {
+    if (paginaActual < totalPaginas) { paginaActual++; renderPageItems(cloudName); }
+  });
+
+  nav.append(btnPrev, info, btnNext);
+
+  // Insertar el paginador debajo del div#gallery
+  galleryNode.insertAdjacentElement("afterend", nav);
+}
+
+function renderPageItems(cloudName) {
+  galleryNode.innerHTML = "";
+
+  const inicio = (paginaActual - 1) * ITEMS_POR_PAGINA;
+  const pagina = recursosPaginados.slice(inicio, inicio + ITEMS_POR_PAGINA);
+
+  pagina.forEach(resource => galleryNode.appendChild(buildCard(resource, cloudName)));
+
+  // Re-renderizar el paginador con la página actualizada
+  renderPagination(recursosPaginados.length, cloudName);
+
+  // Scroll suave al inicio de la galería al cambiar de página
+  galleryNode.scrollIntoView({ behavior: "smooth", block: "start" });
+}
 
 function renderGallery(resources, cloudName) {
   galleryNode.innerHTML = "";
+  const old = document.getElementById("pagination");
+  if (old) old.remove();
+
   if (!resources || !resources.length) {
-    galleryNode.innerHTML =
-      "<p style='grid-column:1/-1;text-align:center;color:var(--muted);padding:30px;'>No hay archivos en la galería todavía.</p>";
+    showEmptyGallery();
     return;
   }
 
-  [...resources]
-    .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""))
-    .forEach((resource) => {
-      const isVideo = resource.resource_type === "video";
+  // Ordenar y guardar todos los recursos para la paginación
+  recursosPaginados = [...resources].sort(
+    (a, b) => (b.created_at || "").localeCompare(a.created_at || "")
+  );
 
-      const card = document.createElement("article");
-      card.className = "card";
+  // Cuando se actualizan los recursos (ej: nueva subida) volvemos a la página 1
+  paginaActual = 1;
+  renderPageItems(cloudName);
+}
 
-      const mediaContainer = document.createElement("div");
-      mediaContainer.className = "media-container";
-
-      if (isVideo) {
-        const poster = document.createElement("img");
-        poster.src     = buildThumbnailUrl(cloudName, resource);
-        poster.alt     = resource.public_id;
-        poster.loading = "lazy";
-        poster.style.cursor = "pointer";
-        poster.title   = "Ver video";
-        poster.addEventListener("load",  () => poster.classList.add("loaded"));
-        poster.addEventListener("error", () => { poster.style.opacity = "1"; });
-        poster.addEventListener("click", () => window.open(resource.secure_url, "_blank"));
-
-        const playIcon = document.createElement("div");
-        playIcon.className = "play-icon";
-        playIcon.innerHTML = "▶";
-
-        mediaContainer.appendChild(poster);
-        mediaContainer.appendChild(playIcon);
-      } else {
-        const img = document.createElement("img");
-        img.src     = buildThumbnailUrl(cloudName, resource);
-        img.alt     = resource.public_id;
-        img.loading = "lazy";
-        img.style.cursor = "pointer";
-        img.title   = "Ver imagen completa";
-        img.addEventListener("load",  () => img.classList.add("loaded"));
-        img.addEventListener("error", () => { img.style.opacity = "1"; });
-        img.addEventListener("click", () => window.open(resource.secure_url, "_blank"));
-        mediaContainer.appendChild(img);
-      }
-
-      const footer = document.createElement("div");
-      footer.className = "card-footer";
-
-      const name = document.createElement("small");
-      const shortName = resource.public_id.split("/").pop() || resource.public_id;
-      name.textContent = shortName.length > 15 ? shortName.substring(0, 12) + "…" : shortName;
-
-      const download = document.createElement("a");
-      download.className   = "download-link";
-      download.href        = buildDownloadUrl(cloudName, resource);
-      download.textContent = "Descargar";
-      download.target      = "_blank";
-      download.rel         = "noopener noreferrer";
-
-      footer.append(name, download);
-      card.append(mediaContainer, footer);
-      galleryNode.appendChild(card);
-    });
+function clearSelection() {
+  selectedIds.clear();
+  renderPageItems(CONFIG_FIJA.cloudName);
+  updateSelectionBar();
 }
 
 // ─────────────────────────────────────────────
@@ -153,7 +345,7 @@ function dedup(resources) {
 }
 
 // Registra el error técnico en consola (solo visible para desarrolladores)
-// y muestra un mensaje discreto y amigable al usuario final.
+// y muestra el panel de galería vacía sin mensaje de error visible al usuario.
 function showErrorPanel(httpStatus) {
   const errorMap = {
     401: "Tag no encontrado o sin recursos públicos (401) — asignar tag a los recursos existentes en Cloudinary Media Library.",
@@ -163,15 +355,16 @@ function showErrorPanel(httpStatus) {
   console.error(
     `[Upload Gallery] Error al cargar la galería: ${errorMap[httpStatus] || `HTTP ${httpStatus} inesperado.`}`
   );
+  // No mostramos error al usuario — simplemente galería vacía
+  showEmptyGallery();
+}
 
+function showEmptyGallery() {
   galleryNode.innerHTML = `
     <div style="grid-column:1/-1; text-align:center; padding:40px 20px; color:var(--muted);">
       <p style="font-size:2rem; margin:0 0 12px;">📷</p>
-      <p style="margin:0 0 6px; color:var(--text); font-size:0.95rem;">
-        La galería no está disponible en este momento.
-      </p>
-      <p style="margin:0; font-size:0.85rem;">
-        Puedes seguir subiendo fotos — aparecerán aquí de inmediato.
+      <p style="margin:0; color:var(--text); font-size:0.95rem;">
+        No hay elementos a mostrar en la galería.
       </p>
     </div>`;
 }
@@ -214,9 +407,9 @@ async function refreshGallery(silent = false) {
     renderGallery(currentResources, cloudName);
     if (!silent) setStatus("Galería al día.");
   } else {
-    // Sin recursos y con error: mostrar panel de diagnóstico específico
+    // Sin recursos: log técnico en consola, galería vacía sin mensaje de error visible
     showErrorPanel(lastError);
-    if (!silent) setStatus("No se pudo cargar la galería.", true);
+    if (!silent) setStatus(""); // sin mensaje de error visible al usuario
   }
 }
 
