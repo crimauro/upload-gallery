@@ -43,7 +43,7 @@ function buildViewUrl(cloudName, resource) {
 // Paginación
 // Cambia ITEMS_POR_PAGINA para ajustar cuántas tarjetas muestra cada página.
 // ─────────────────────────────────────────────
-const ITEMS_POR_PAGINA = 12;
+const ITEMS_POR_PAGINA = 50;
 let paginaActual = 1;
 
 // ─────────────────────────────────────────────
@@ -119,7 +119,7 @@ function refreshCardCheckboxes() {
 function updateDownloadBar() {
   const bar   = document.getElementById("download-bar");
   const count = selectedIds.size;
-  bar.hidden  = count === 0;
+  bar.style.display = count === 0 ? "none" : "flex";
   if (count > 0) {
     document.getElementById("dl-count").textContent =
       `${count} archivo${count !== 1 ? "s" : ""} seleccionado${count !== 1 ? "s" : ""}`;
